@@ -12,6 +12,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
+  const [info, setInfo] = useState('')
   const [loading, setLoading] = useState(false)
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -20,10 +21,25 @@ export default function SignupPage() {
     if (password.length < 8)  { setError('Password must be at least 8 characters'); return }
     setLoading(true)
     setError('')
+    setInfo('')
     const supabase = createClient()
-    const { error } = await supabase.auth.signUp({ email, password, options: { emailRedirectTo: `${location.origin}/api/auth/callback` } })
-    if (error) { setError(error.message); setLoading(false) }
-    else router.push('/dashboard')
+    const { data, error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: { emailRedirectTo: `${location.origin}/api/auth/callback` },
+    })
+    if (error) {
+      setError(error.message)
+      setLoading(false)
+    } else if (data.session) {
+      // Email confirmation is OFF — session returned immediately
+      router.refresh()
+      router.push('/dashboard')
+    } else {
+      // Email confirmation is ON — tell user to check email
+      setInfo('Account created! Check your email and click the confirmation link, then sign in.')
+      setLoading(false)
+    }
   }
 
   return (
@@ -36,6 +52,7 @@ export default function SignupPage() {
         <Input label="Password" type="password" placeholder="Min. 8 characters" value={password} onChange={e => setPassword(e.target.value)} required />
         <Input label="Confirm password" type="password" placeholder="••••••••" value={confirm} onChange={e => setConfirm(e.target.value)} required />
         {error && <p className="text-sm text-red-400 bg-red-900/20 rounded-lg px-3 py-2">{error}</p>}
+        {info  && <p className="text-sm text-green-400 bg-green-900/20 rounded-lg px-3 py-2">{info}</p>}
         <Button type="submit" loading={loading} className="w-full justify-center">Create account</Button>
       </form>
 

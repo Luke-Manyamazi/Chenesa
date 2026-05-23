@@ -23,6 +23,7 @@ export default function LoginPage() {
       setError(error.message)
       setLoading(false)
     } else {
+      router.refresh()          // sync session cookie to server
       router.push('/dashboard')
     }
   }
