@@ -9,9 +9,11 @@ from datetime import datetime, timezone
 
 from loguru import logger
 
-# ── Import existing email-automation core ──────────────────────────────────
+# ── Import email-automation core (bundled in backend/src/) ─────────────────
+# backend/app/services/cleaning_service.py  →  go up 2 levels  →  backend/
+# backend/ contains src/ so "from src.xxx import ..." works.
 _EMAIL_AUTO_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "Email-Automation")
+    os.path.join(os.path.dirname(__file__), "..", "..")
 )
 if _EMAIL_AUTO_DIR not in sys.path:
     sys.path.insert(0, _EMAIL_AUTO_DIR)
