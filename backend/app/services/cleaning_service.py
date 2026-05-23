@@ -3,27 +3,15 @@ Cleaning service — orchestrates a full email clean for one user+account.
 Imports the existing Email-Automation core code via sys.path.
 """
 import json
-import os
-import sys
 from datetime import datetime, timezone
 
 from loguru import logger
-
-# ── Import email-automation core (bundled in backend/src/) ─────────────────
-# backend/app/services/cleaning_service.py  →  go up 2 levels  →  backend/
-# backend/ contains src/ so "from src.xxx import ..." works.
-_EMAIL_AUTO_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..")
-)
-if _EMAIL_AUTO_DIR not in sys.path:
-    sys.path.insert(0, _EMAIL_AUTO_DIR)
-
-from src.accounts.gmail import GmailAccount            # noqa: E402
-from src.accounts.imap import ImapAccount              # noqa: E402
-from src.utils.rate_limiter import RateLimiter         # noqa: E402
-from src.classifier.claude_classifier import ClaudeClassifier  # noqa: E402
-from src.cleaner.email_cleaner import EmailCleaner     # noqa: E402
-from src.utils.models import EmailCategory             # noqa: E402
+from src.accounts.gmail import GmailAccount
+from src.accounts.imap import ImapAccount
+from src.utils.rate_limiter import RateLimiter
+from src.classifier.claude_classifier import ClaudeClassifier
+from src.cleaner.email_cleaner import EmailCleaner
+from src.utils.models import EmailCategory
 # ──────────────────────────────────────────────────────────────────────────
 
 from ..db.supabase import get_supabase

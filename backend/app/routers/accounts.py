@@ -1,19 +1,10 @@
-import os
-import sys
 from fastapi import APIRouter, Depends, HTTPException
 from ..dependencies import get_current_user
 from ..db.supabase import get_supabase
 from ..services.encryption import encrypt
 from ..models.requests import ConnectImapRequest, ToggleAccountRequest
 from ..models.responses import AccountOut
-
-# Import provider auto-detection from email-automation core
-_EMAIL_AUTO_DIR = os.path.abspath(
-    os.path.join(os.path.dirname(__file__), "..", "..", "..", "..", "Email-Automation")
-)
-if _EMAIL_AUTO_DIR not in sys.path:
-    sys.path.insert(0, _EMAIL_AUTO_DIR)
-from src.accounts.imap import detect_imap_settings  # noqa: E402
+from src.accounts.imap import detect_imap_settings
 
 router = APIRouter()
 
