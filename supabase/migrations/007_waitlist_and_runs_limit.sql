@@ -26,7 +26,9 @@ CREATE POLICY "users can read their own waitlist entry" ON public.waitlist
 ALTER TABLE public.profiles
   ALTER COLUMN free_runs_limit SET DEFAULT 1;
 
--- 3. Set every existing user to 1 run — testing phase, everyone gets one try
+-- 3. Set every FREE user to 1 run — testing phase, everyone gets one try
+--    Pro/paid users are NOT touched (subscription_plan != 'free')
 UPDATE public.profiles
   SET free_runs_limit = 1
-  WHERE free_runs_limit != 1;
+  WHERE free_runs_limit != 1
+    AND subscription_plan = 'free';
