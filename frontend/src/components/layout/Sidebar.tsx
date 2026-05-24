@@ -8,6 +8,7 @@ const links = [
   { href: '/dashboard', label: 'Overview',  icon: LayoutDashboard },
   { href: '/accounts',  label: 'Accounts',  icon: Mail },
   { href: '/history',   label: 'History',   icon: History },
+  { href: '/settings',  label: 'Settings',  icon: Settings },
 ]
 
 export default function Sidebar({ email }: { email: string }) {

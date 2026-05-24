@@ -37,12 +37,15 @@ async def run_for_account(user_id: str, account_id: str, run_id: str) -> None:
             raise ValueError(f"Account {account_id} not found for user {user_id}")
         acc = acc_row.data
 
-        # 2. Fetch profile for plan info
+        # 2. Fetch profile + keep rules in parallel
         profile_row = supabase.table("profiles").select("subscription_plan, free_runs_used, free_runs_limit").eq("id", user_id).single().execute()
         profile = profile_row.data or {}
         plan = profile.get("subscription_plan", "free")
         limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
         max_emails = limits["max_emails"] or 500
+
+        rules_row = supabase.table("keep_rules").select("keyword, match_field").eq("user_id", user_id).execute()
+        keep_rules = [(r["keyword"], r["match_field"]) for r in (rules_row.data or [])]
 
         # 3. Build account object — higher IMAP rate for speed (20 req/s ≈ 500 emails in ~25s)
         rate_limiter = RateLimiter(gmail_rps=20, anthropic_rpm=50)
@@ -111,6 +114,7 @@ async def run_for_account(user_id: str, account_id: str, run_id: str) -> None:
             imap_host = acc.get("imap_host", "")
             imap_port = acc.get("imap_port", 993)
             app_password = None
+            user_keep_rules = keep_rules  # list of (keyword, match_field)
 
         fake_cfg = _FakeCfg()
         fake_acc_cfg = _FakeAccountCfg()

@@ -35,4 +35,9 @@ export const api = {
   triggerRun: (account_id: string)             => authFetch('/runs', { method: 'POST', body: JSON.stringify({ account_id }) }),
   getRuns: ()                                  => authFetch('/runs'),
   getRunDetail: (id: string)                   => authFetch(`/runs/${id}`),
+
+  getKeepRules: ()                             => authFetch('/settings/keep-rules'),
+  addKeepRule:  (keyword: string, match_field: string) =>
+    authFetch('/settings/keep-rules', { method: 'POST', body: JSON.stringify({ keyword, match_field }) }),
+  deleteKeepRule: (id: string)                 => authFetch(`/settings/keep-rules/${id}`, { method: 'DELETE' }),
 }

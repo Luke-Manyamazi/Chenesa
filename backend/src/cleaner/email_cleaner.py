@@ -128,7 +128,18 @@ class EmailCleaner:
             logger.info(f"[{account_config.name}] No emails found — skipping")
             return
 
-        # 3. Pre-classify OLD_READ (deterministic, no AI cost)
+        # 3a. Apply user keep-rules FIRST — these override everything (AI + OLD_READ)
+        user_keep_rules = getattr(account_config, "user_keep_rules", [])
+        if user_keep_rules:
+            emails, forced_kept = self._apply_keep_rules(emails, user_keep_rules)
+            stats.kept += len(forced_kept)
+            if forced_kept:
+                logger.info(
+                    f"[{account_config.name}] Keep-rules protected "
+                    f"{len(forced_kept)} email(s) from deletion"
+                )
+
+        # 3b. Pre-classify OLD_READ (deterministic, no AI cost)
         old_read_days = account_config.old_read_days or self.config.global_.old_read_days
         old_read_results, remaining_emails = self._pre_classify_old_read(
             emails, old_read_days
@@ -168,7 +179,7 @@ class EmailCleaner:
             r.email_id for r in all_results
             if r.action_taken in ("pending_delete", "dry_run_would_delete")
         ]
-        stats.kept   = sum(1 for r in all_results if r.action_taken == "kept")
+        stats.kept   += sum(1 for r in all_results if r.action_taken == "kept")
         stats.errors += sum(1 for r in all_results if r.action_taken == "skipped_error")
 
         if to_delete_ids:
@@ -205,6 +216,46 @@ class EmailCleaner:
             f"errors={stats.errors} "
             f"| Cache hit rate: {cache['cache_hit_rate_pct']}% ==="
         )
+
+    # ------------------------------------------------------------------
+    # Keep-rule enforcement (user-defined keywords, highest priority)
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    def _apply_keep_rules(
+        emails: list[Email],
+        rules: list[tuple[str, str]],
+    ) -> tuple[list[Email], list[Email]]:
+        """
+        Split emails into (remaining_to_process, force_kept).
+
+        Rules are (keyword, match_field) tuples where match_field is
+        'subject', 'sender', or 'all'.  Matching is case-insensitive
+        substring search.
+        """
+        remaining: list[Email] = []
+        force_kept: list[Email] = []
+
+        for email in emails:
+            subject = (email.subject or "").lower()
+            sender  = (email.sender  or "").lower()
+
+            matched = False
+            for keyword, field in rules:
+                kw = keyword.lower()
+                if field == "subject" and kw in subject:
+                    matched = True; break
+                elif field == "sender" and kw in sender:
+                    matched = True; break
+                elif field == "all" and (kw in subject or kw in sender):
+                    matched = True; break
+
+            if matched:
+                force_kept.append(email)
+            else:
+                remaining.append(email)
+
+        return remaining, force_kept
 
     # ------------------------------------------------------------------
     # Pre-classification (no Claude)
