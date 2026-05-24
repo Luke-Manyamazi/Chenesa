@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Trash2, Play, CheckCircle, XCircle, Zap, Mail } from 'lucide-react'
 import { api } from '@/lib/api'
 import { getProviderIcon } from '@/lib/constants'
@@ -250,6 +251,9 @@ function Skeleton() {
 
 // ── Main page ─────────────────────────────────────────────────────────────
 export default function AccountsPage() {
+  const searchParams   = useSearchParams()
+  const connectedEmail = searchParams.get('connected')
+
   const [accounts,     setAccounts]     = useState<Account[]>([])
   const [loading,      setLoading]      = useState(true)
   const [activeRun,    setActiveRun]    = useState<{ accountId: string; runId: string; email: string } | null>(null)
@@ -302,6 +306,12 @@ export default function AccountsPage() {
         <h1 className="text-2xl font-bold text-white">Email accounts</h1>
         <p className="text-slate-400 mt-1">Connect any mailbox. Chenesa auto-detects provider settings.</p>
       </div>
+
+      {connectedEmail && (
+        <div className="rounded-xl bg-green-900/20 border border-green-700/40 px-4 py-3 text-sm text-green-400 flex items-center gap-2">
+          <CheckCircle size={16} /> <strong>{connectedEmail}</strong> connected successfully — ready to clean!
+        </div>
+      )}
 
       {error && (
         <div className="rounded-xl bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400 flex items-center gap-2">

@@ -1,10 +1,12 @@
 import json
 from fastapi import APIRouter, Depends, Query
+from fastapi.responses import RedirectResponse
 from googleapiclient.discovery import build
 from ..services.gmail_oauth import get_auth_url, exchange_code
 from ..services.encryption import encrypt
 from ..db.supabase import get_supabase
 from ..dependencies import get_current_user
+from ..config import get_settings
 
 router = APIRouter()
 
@@ -50,4 +52,5 @@ async def gmail_callback(code: str = Query(...), state: str = Query(...)):
             "enabled": True,
         }).execute()
 
-    return {"message": f"Gmail account {email_address} connected successfully"}
+    frontend = get_settings().frontend_url or "https://chenesa.vercel.app"
+    return RedirectResponse(url=f"{frontend}/accounts?connected={email_address}", status_code=302)
