@@ -89,6 +89,12 @@ async def run_for_account(user_id: str, account_id: str, run_id: str) -> None:
             )
 
         # 4. Build a minimal config-like object for EmailCleaner
+        # OLD_READ threshold: emails that are read AND older than this many days
+        # are auto-deleted without going through Claude.
+        # 180 days = 6 months — conservative default that avoids nuking
+        # important old emails (bank statements, receipts, etc.)
+        old_read_threshold = profile.get("old_read_days") or 180
+
         class _FakeCfg:
             anthropic_api_key = settings.anthropic_api_key
             yahoo_app_password = ""
@@ -96,7 +102,7 @@ async def run_for_account(user_id: str, account_id: str, run_id: str) -> None:
                 dry_run = False
                 batch_size = 20
                 max_emails_per_run = max_emails
-                old_read_days = 30
+                old_read_days = old_read_threshold
                 schedule_interval_hours = 6
             class rate_limits:
                 gmail_requests_per_second = 5
@@ -108,7 +114,7 @@ async def run_for_account(user_id: str, account_id: str, run_id: str) -> None:
             type = acc["type"]
             email = acc["email"]
             enabled = True
-            old_read_days = 30
+            old_read_days = old_read_threshold
             token_file = None
             credentials_file = None
             imap_host = acc.get("imap_host", "")

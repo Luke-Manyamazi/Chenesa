@@ -5,10 +5,34 @@ from ..db.supabase import get_supabase
 
 router = APIRouter()
 
+VALID_OLD_READ_DAYS = {30, 90, 180, 365}
+
 
 class KeepRuleIn(BaseModel):
     keyword:     str  = Field(..., min_length=1, max_length=200)
     match_field: str  = Field("all", pattern="^(subject|sender|all)$")
+
+
+class ProfilePrefsIn(BaseModel):
+    old_read_days: int = Field(..., ge=30, le=365)
+
+
+@router.get("/profile")
+async def get_profile_prefs(user_id: str = Depends(get_current_user)):
+    supabase = get_supabase()
+    row = supabase.table("profiles").select("old_read_days") \
+        .eq("id", user_id).single().execute()
+    return {"old_read_days": (row.data or {}).get("old_read_days", 180)}
+
+
+@router.patch("/profile")
+async def update_profile_prefs(body: ProfilePrefsIn, user_id: str = Depends(get_current_user)):
+    if body.old_read_days not in VALID_OLD_READ_DAYS:
+        raise HTTPException(status_code=400, detail=f"old_read_days must be one of {sorted(VALID_OLD_READ_DAYS)}")
+    supabase = get_supabase()
+    supabase.table("profiles").update({"old_read_days": body.old_read_days}) \
+        .eq("id", user_id).execute()
+    return {"old_read_days": body.old_read_days}
 
 
 @router.get("/keep-rules")

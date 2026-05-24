@@ -40,4 +40,8 @@ export const api = {
   addKeepRule:  (keyword: string, match_field: string) =>
     authFetch('/settings/keep-rules', { method: 'POST', body: JSON.stringify({ keyword, match_field }) }),
   deleteKeepRule: (id: string)                 => authFetch(`/settings/keep-rules/${id}`, { method: 'DELETE' }),
+
+  getProfilePrefs: ()                          => authFetch('/settings/profile'),
+  updateProfilePrefs: (prefs: { old_read_days: number }) =>
+    authFetch('/settings/profile', { method: 'PATCH', body: JSON.stringify(prefs) }),
 }

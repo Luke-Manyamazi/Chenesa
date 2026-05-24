@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { Plus, Trash2, Shield, XCircle, BookMarked } from 'lucide-react'
+import { Plus, Trash2, Shield, XCircle, BookMarked, SlidersHorizontal } from 'lucide-react'
 import { api } from '@/lib/api'
 import Button from '@/components/ui/Button'
 import Input from '@/components/ui/Input'
@@ -26,17 +26,30 @@ const EXAMPLES = [
   { keyword: 'statement', match_field: 'subject', label: 'Statements' },
 ]
 
+const OLD_READ_OPTIONS = [
+  { days: 30,  label: 'Aggressive',   desc: '1 month — deletes read emails quickly', color: 'text-red-400'    },
+  { days: 90,  label: 'Moderate',     desc: '3 months — balanced approach',          color: 'text-yellow-400' },
+  { days: 180, label: 'Conservative', desc: '6 months — recommended default',        color: 'text-blue-400'   },
+  { days: 365, label: 'Cautious',     desc: '1 year — only very old emails',         color: 'text-green-400'  },
+]
+
 export default function SettingsPage() {
-  const [rules,      setRules]      = useState<Rule[]>([])
-  const [loading,    setLoading]    = useState(true)
-  const [keyword,    setKeyword]    = useState('')
-  const [matchField, setMatchField] = useState('all')
-  const [adding,     setAdding]     = useState(false)
-  const [error,      setError]      = useState('')
+  const [rules,        setRules]        = useState<Rule[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [keyword,      setKeyword]      = useState('')
+  const [matchField,   setMatchField]   = useState('all')
+  const [adding,       setAdding]       = useState(false)
+  const [error,        setError]        = useState('')
+  const [oldReadDays,  setOldReadDays]  = useState(180)
+  const [savingPrefs,  setSavingPrefs]  = useState(false)
 
   const load = async () => {
     setLoading(true)
-    try { setRules(await api.getKeepRules()) } catch {}
+    try {
+      const [rulesData, prefs] = await Promise.all([api.getKeepRules(), api.getProfilePrefs()])
+      setRules(rulesData)
+      setOldReadDays(prefs.old_read_days ?? 180)
+    } catch {}
     setLoading(false)
   }
 
@@ -67,6 +80,13 @@ export default function SettingsPage() {
     catch (err: any) { setError(err.message) }
   }
 
+  const handleSavePrefs = async (days: number) => {
+    setSavingPrefs(true)
+    try { await api.updateProfilePrefs({ old_read_days: days }); setOldReadDays(days) }
+    catch (err: any) { setError(err.message) }
+    setSavingPrefs(false)
+  }
+
   return (
     <div className="w-full max-w-3xl space-y-8">
 
@@ -74,6 +94,46 @@ export default function SettingsPage() {
       <div>
         <h1 className="text-2xl font-bold text-white tracking-tight">Settings</h1>
         <p className="text-slate-400 mt-1">Control how Chenesa handles your emails.</p>
+      </div>
+
+      {/* Cleaning aggressiveness */}
+      <div className="rounded-2xl border border-border bg-surface overflow-hidden">
+        <div className="flex items-center gap-3 px-6 py-5 border-b border-border bg-slate-900/40">
+          <div className="w-9 h-9 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center">
+            <SlidersHorizontal size={16} className="text-primary-400" />
+          </div>
+          <div>
+            <h2 className="font-semibold text-white">Cleaning aggressiveness</h2>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Read emails older than this threshold are <span className="text-red-400 font-medium">auto-deleted</span> without AI review.
+            </p>
+          </div>
+        </div>
+        <div className="p-6">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {OLD_READ_OPTIONS.map(opt => {
+              const active = oldReadDays === opt.days
+              return (
+                <button
+                  key={opt.days}
+                  disabled={savingPrefs}
+                  onClick={() => handleSavePrefs(opt.days)}
+                  className={`rounded-xl border p-3 text-left transition-all disabled:opacity-50
+                    ${active
+                      ? 'border-primary-500/50 bg-primary-500/10'
+                      : 'border-border bg-slate-800/30 hover:border-slate-600'
+                    }`}
+                >
+                  <p className={`text-sm font-semibold ${active ? 'text-primary-300' : 'text-white'}`}>{opt.label}</p>
+                  <p className="text-[10px] text-slate-500 mt-1 leading-tight">{opt.desc}</p>
+                </button>
+              )
+            })}
+          </div>
+          <p className="text-xs text-slate-600 mt-3">
+            Emails matching your <span className="text-green-400">keep rules</span> are always protected, regardless of this setting.
+          </p>
+        </div>
       </div>
 
       {/* Keep Rules card */}
