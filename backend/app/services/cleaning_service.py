@@ -20,9 +20,9 @@ from ..services.encryption import decrypt
 from ..config import get_settings
 
 PLAN_LIMITS: dict[str, dict] = {
-    "free":  {"max_emails": 50,  "max_accounts": 1},
-    "basic": {"max_emails": 200, "max_accounts": 2},
-    "pro":   {"max_emails": 500, "max_accounts": 4},
+    "free":  {"max_emails": 100,   "max_accounts": 1},
+    "basic": {"max_emails": 500,   "max_accounts": 2},
+    "pro":   {"max_emails": 2000,  "max_accounts": 5},
 }
 
 

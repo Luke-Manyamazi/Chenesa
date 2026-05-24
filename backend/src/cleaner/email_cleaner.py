@@ -161,38 +161,39 @@ class EmailCleaner:
 
         stats.classified = len(claude_results)
 
-        # 5. Execute deletes
+        # 5. Execute deletes — batch mode for maximum speed
         all_results = old_read_results + claude_results
 
-        for result in all_results:
-            if result.action_taken in ("pending_delete", "dry_run_would_delete"):
-                if not self.dry_run:
-                    success = account.delete_email(result.email_id)
-                    if success:
+        to_delete_ids = [
+            r.email_id for r in all_results
+            if r.action_taken in ("pending_delete", "dry_run_would_delete")
+        ]
+        stats.kept   = sum(1 for r in all_results if r.action_taken == "kept")
+        stats.errors += sum(1 for r in all_results if r.action_taken == "skipped_error")
+
+        if to_delete_ids:
+            if self.dry_run:
+                stats.deleted = len(to_delete_ids)
+                logger.info(
+                    f"[{account_config.name}] [DRY RUN] Would delete "
+                    f"{len(to_delete_ids)} email(s)"
+                )
+            elif hasattr(account, "batch_delete_emails"):
+                # Fast path: one IMAP STORE + one EXPUNGE for all emails
+                logger.info(
+                    f"[{account_config.name}] Batch-deleting "
+                    f"{len(to_delete_ids)} email(s)…"
+                )
+                deleted, errs = account.batch_delete_emails(to_delete_ids)
+                stats.deleted  = deleted
+                stats.errors  += errs
+            else:
+                # Fallback for Gmail API (no IMAP batch)
+                for email_id in to_delete_ids:
+                    if account.delete_email(email_id):
                         stats.deleted += 1
-                        result.action_taken = "deleted"
-                        logger.info(
-                            f"[{account_config.name}] DELETED {result.email_id} "
-                            f"| {result.category.value} "
-                            f"| {result.confidence} confidence "
-                            f"| {result.reasoning}"
-                        )
                     else:
                         stats.errors += 1
-                        result.action_taken = "delete_failed"
-                        logger.warning(
-                            f"[{account_config.name}] DELETE FAILED for {result.email_id}"
-                        )
-                else:
-                    stats.deleted += 1  # Count dry-run "deletions" for reporting
-                    logger.info(
-                        f"[{account_config.name}] [DRY RUN] Would delete {result.email_id} "
-                        f"| {result.category.value} | {result.reasoning}"
-                    )
-            elif result.action_taken == "kept":
-                stats.kept += 1
-            elif result.action_taken == "skipped_error":
-                stats.errors += 1
 
         # Log cache stats
         cache = self.classifier.get_cache_stats()

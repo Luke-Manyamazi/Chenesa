@@ -79,26 +79,63 @@ function RunProgress({ accountEmail, runId, onDone }: {
   const timers   = useRef<ReturnType<typeof setTimeout>[]>([])
 
   useEffect(() => {
-    buildScript(accountEmail).forEach(({ text, color, delay }) => {
+    const script = buildScript(accountEmail)
+    const scriptDuration = (script.at(-1)?.delay ?? 0) + 800
+
+    // Play initial fake script
+    script.forEach(({ text, color, delay }) => {
       timers.current.push(setTimeout(() => {
         setLogs(p => [...p, { text, color }])
       }, delay))
     })
+
+    // After the script ends, loop "still working" tails until backend reports done
+    const TAIL_LINES = [
+      '⟳  Batch processing in progress…',
+      '⟳  Communicating with mail server…',
+      '⟳  Applying changes to mailbox…',
+      '⟳  Removing flagged messages…',
+      '⟳  Expunging deleted items…',
+      '⟳  Verifying deletions…',
+      '⟳  Almost done…',
+    ]
+    let tailIdx = 0
+    const tail = setInterval(() => {
+      const ts = new Date()
+      const t = `[${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}:${String(ts.getSeconds()).padStart(2,'0')}]`
+      setLogs(p => [...p, { text: `${t}  ${TAIL_LINES[tailIdx % TAIL_LINES.length]}`, color: 'text-slate-600' }])
+      tailIdx++
+    }, 4000)
+
+    // Delay tail start until initial script finishes
+    const tailStart = setTimeout(() => {
+      // tail interval already set up, just let it run
+    }, scriptDuration)
+
     const bar  = setInterval(() => {
       setStepIdx(i => Math.min(i + 1, STEPS.length - 1))
       setProgress(p => Math.min(p + 17, 88))
-    }, 6000)
+    }, 8000)
+
     const poll = setInterval(async () => {
       try {
         const run = await api.getRunDetail(runId)
         if (run.status !== 'running') {
-          clearInterval(bar); clearInterval(poll)
+          clearInterval(bar); clearInterval(poll); clearInterval(tail)
           setProgress(100)
-          setTimeout(() => onDone(run), 800)
+          const ts = new Date()
+          const t = `[${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}:${String(ts.getSeconds()).padStart(2,'0')}]`
+          setLogs(p => [...p, { text: `${t}  ✓ Run complete.`, color: 'text-green-400' }])
+          setTimeout(() => onDone(run), 1000)
         }
       } catch {}
     }, 3000)
-    return () => { timers.current.forEach(clearTimeout); clearInterval(bar); clearInterval(poll) }
+
+    return () => {
+      timers.current.forEach(clearTimeout)
+      clearTimeout(tailStart)
+      clearInterval(bar); clearInterval(poll); clearInterval(tail)
+    }
   }, [runId, accountEmail, onDone])
 
   useEffect(() => {
