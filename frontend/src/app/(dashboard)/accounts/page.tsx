@@ -1,6 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
+import Link from 'next/link'
 import { Trash2, Play, CheckCircle, XCircle, Zap, Mail } from 'lucide-react'
 import { api } from '@/lib/api'
 import { getProviderIcon } from '@/lib/constants'
@@ -325,9 +326,26 @@ export default function AccountsPage() {
       )}
 
       {error && (
-        <div className="rounded-xl bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400 flex items-center gap-2">
-          <XCircle size={16} /> {error}
-        </div>
+        error.toLowerCase().includes('upgrade') ? (
+          <div className="rounded-2xl border border-amber-700/40 bg-gradient-to-r from-amber-950/40 to-slate-900/80 p-5">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="font-semibold text-amber-300 text-sm">Free cleans used up</p>
+                <p className="text-xs text-amber-500/80 mt-0.5 leading-relaxed">{error}</p>
+              </div>
+              <Link href="/upgrade"
+                className="flex-shrink-0 flex items-center gap-1.5 px-4 py-2 rounded-xl
+                  bg-gradient-to-r from-primary-600 to-primary-500 text-white text-sm font-semibold
+                  hover:opacity-90 transition-opacity shadow-lg shadow-primary-900/40">
+                <Zap size={13} className="fill-white" /> Upgrade
+              </Link>
+            </div>
+          </div>
+        ) : (
+          <div className="rounded-xl bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400 flex items-center gap-2">
+            <XCircle size={16} /> {error}
+          </div>
+        )
       )}
 
       {/* Active run */}

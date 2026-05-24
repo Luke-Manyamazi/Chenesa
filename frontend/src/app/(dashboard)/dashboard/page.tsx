@@ -110,7 +110,7 @@ export default async function DashboardPage() {
               <p className="text-sm font-semibold text-amber-300">Free trial</p>
               <p className="text-xs text-amber-500/70 mt-0.5">{runsUsed} of {runsLimit} free cleans used</p>
             </div>
-            <Link href="/settings"
+            <Link href="/upgrade"
               className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition-colors">
               Upgrade →
             </Link>
@@ -191,7 +191,7 @@ export default async function DashboardPage() {
                 {planLabel[plan] ?? plan}
               </span>
               {plan === 'free' && (
-                <Link href="/settings" className="text-xs text-primary-400 hover:text-primary-300">Upgrade →</Link>
+                <Link href="/upgrade" className="text-xs text-primary-400 hover:text-primary-300">Upgrade →</Link>
               )}
             </div>
             <div className="space-y-1.5 text-xs text-slate-400">
