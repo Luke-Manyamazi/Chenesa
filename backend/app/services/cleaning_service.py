@@ -19,9 +19,9 @@ from ..services.encryption import decrypt
 from ..config import get_settings
 
 PLAN_LIMITS: dict[str, dict] = {
-    "free":  {"max_emails": 50,   "max_accounts": 1},
-    "basic": {"max_emails": 500,  "max_accounts": 2},
-    "pro":   {"max_emails": None, "max_accounts": 4},
+    "free":  {"max_emails": 50,  "max_accounts": 1},
+    "basic": {"max_emails": 200, "max_accounts": 2},
+    "pro":   {"max_emails": 500, "max_accounts": 4},
 }
 
 
@@ -41,10 +41,10 @@ async def run_for_account(user_id: str, account_id: str, run_id: str) -> None:
         profile = profile_row.data or {}
         plan = profile.get("subscription_plan", "free")
         limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
-        max_emails = limits["max_emails"] or 9999
+        max_emails = limits["max_emails"] or 500
 
-        # 3. Build account object
-        rate_limiter = RateLimiter(gmail_rps=5, anthropic_rpm=50)
+        # 3. Build account object — higher IMAP rate for speed (20 req/s ≈ 500 emails in ~25s)
+        rate_limiter = RateLimiter(gmail_rps=20, anthropic_rpm=50)
         decrypted = decrypt(acc["encrypted_token"])
 
         if acc["type"] == "gmail":
