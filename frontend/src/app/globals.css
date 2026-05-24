@@ -2,16 +2,83 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ── Semantic colour tokens ────────────────────────────────────────────── */
+/* Dark (default) */
 :root {
   --background: #0F172A;
-  --surface: #1E293B;
-  --border: #334155;
-  --primary: #6366f1;
+  --surface:    #1E293B;
+  --border:     #334155;
+  --primary:    #6366f1;
+}
+
+/* Light override */
+html.light {
+  --background: #f8fafc;
+  --surface:    #ffffff;
+  --border:     #e2e8f0;
+  --primary:    #4f46e5;
 }
 
 body {
   background-color: var(--background);
   color: #f1f5f9;
+  transition: background-color 0.2s, color 0.2s;
+}
+
+html.light body {
+  color: #0f172a;
+}
+
+/* ── Light-mode Tailwind text overrides ────────────────────────────────── */
+html.light .text-white           { color: #0f172a !important; }
+html.light .text-slate-50,
+html.light .text-slate-100,
+html.light .text-slate-200       { color: #1e293b !important; }
+html.light .text-slate-300       { color: #334155 !important; }
+html.light .text-slate-400       { color: #475569 !important; }
+html.light .text-slate-500       { color: #64748b !important; }
+html.light .text-slate-600       { color: #94a3b8 !important; }
+
+/* ── Light-mode Tailwind background overrides ───────────────────────────── */
+html.light .bg-slate-700\/60    { background-color: #e2e8f0 !important; }
+html.light .bg-slate-700        { background-color: #e2e8f0 !important; }
+html.light .bg-slate-800\/30    { background-color: #f1f5f9 !important; }
+html.light .bg-slate-800\/40    { background-color: #f1f5f9 !important; }
+html.light .bg-slate-800\/50    { background-color: #f1f5f9 !important; }
+html.light .bg-slate-800\/60    { background-color: #f1f5f9 !important; }
+html.light .bg-slate-800        { background-color: #f1f5f9 !important; }
+html.light .bg-slate-900\/40    { background-color: #f8fafc !important; }
+html.light .bg-slate-900\/50    { background-color: #f8fafc !important; }
+html.light .bg-slate-900        { background-color: #f8fafc !important; }
+html.light .bg-\[\#070b12\]     { background-color: #1e293b !important; }
+
+/* ── Light-mode border overrides ─────────────────────────────────────────  */
+html.light .border-slate-600\/40 { border-color: #cbd5e1 !important; }
+html.light .border-slate-700     { border-color: #cbd5e1 !important; }
+html.light .border-slate-700\/40 { border-color: #e2e8f0 !important; }
+html.light .border-slate-800     { border-color: #e2e8f0 !important; }
+
+/* ── Light-mode gradient overrides (stat cards, terminal header) ────────── */
+html.light .from-slate-900,
+html.light .from-slate-900\/80   { --tw-gradient-from: #f8fafc !important; }
+html.light .to-slate-900,
+html.light .to-slate-800         { --tw-gradient-to: #f1f5f9 !important; }
+html.light .from-slate-800       { --tw-gradient-from: #f1f5f9 !important; }
+
+/* Terminal stays dark in both modes — it's intentional */
+html.light .font-mono            { }
+
+/* ── Transition ──────────────────────────────────────────────────────────  */
+*, *::before, *::after {
+  transition-property: background-color, border-color, color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+/* But DON'T transition animations (spinner, pulse, etc.) */
+.animate-spin, .animate-pulse, .animate-ping,
+.animate-bounce, [class*="animate-"] {
+  transition: none !important;
 }
 
 @layer utilities {

@@ -6,6 +6,7 @@ const config: Config = {
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',
     './src/app/**/*.{js,ts,jsx,tsx,mdx}',
   ],
+  darkMode: 'class',
   theme: {
     extend: {
       colors: {
@@ -20,10 +21,12 @@ const config: Config = {
           700: '#4338ca',
           800: '#3730a3',
           900: '#312e81',
+          950: '#1e1b4b',
         },
-        background: '#0F172A',
-        surface: '#1E293B',
-        border: '#334155',
+        // Semantic tokens — driven by CSS variables so they swap on theme change
+        background: 'var(--background)',
+        surface:    'var(--surface)',
+        border:     'var(--border)',
       },
     },
   },
