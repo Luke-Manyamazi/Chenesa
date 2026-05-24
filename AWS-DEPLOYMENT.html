@@ -1,0 +1,993 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chenesa — AWS Deployment Guide</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:      #0f172a; --surface:  #1e293b; --surface2: #263548;
+    --border:  #334155; --border2:  #475569;
+    --text:    #f1f5f9; --muted:    #94a3b8; --dim:      #64748b;
+    --primary: #6366f1; --primary2: #818cf8; --primary3: #4f46e5;
+    --green:   #22c55e; --green2:   #4ade80;
+    --blue:    #3b82f6; --blue2:    #60a5fa;
+    --amber:   #f59e0b; --red:      #ef4444; --violet:   #8b5cf6;
+    --aws:     #FF9900; --aws2:     #FFB347;
+  }
+  html { scroll-behavior: smooth; }
+  body { font-family: 'Inter', sans-serif; background: var(--bg); color: var(--text); line-height: 1.6; font-size: 15px; }
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+  .section { padding: 56px 0; }
+  .section + .section { border-top: 1px solid var(--border); }
+  h1 { font-size: 2.6rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; }
+  h2 { font-size: 1.55rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+  h3 { font-size: 1.05rem; font-weight: 600; margin-bottom: 6px; }
+  p  { color: var(--muted); }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em; background: var(--surface2); padding: 2px 6px; border-radius: 5px; color: var(--primary2); border: 1px solid var(--border); }
+  pre { font-family: 'JetBrains Mono', monospace; background: #070b12; color: #e2e8f0; padding: 18px 20px; border-radius: 12px; font-size: 12.5px; line-height: 1.7; overflow-x: auto; border: 1px solid #1e293b; margin-top: 12px; }
+  pre .c  { color: #475569; }
+  pre .k  { color: #818cf8; }
+  pre .s  { color: #4ade80; }
+  pre .v  { color: #fbbf24; }
+  pre .h  { color: #f87171; }
+  .label { display: inline-block; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em; padding: 3px 10px; border-radius: 20px; }
+  .l-aws    { background: rgba(255,153,0,.15);  color: var(--aws2);   border: 1px solid rgba(255,153,0,.3); }
+  .l-indigo { background: rgba(99,102,241,.15); color: var(--primary2);border: 1px solid rgba(99,102,241,.3); }
+  .l-green  { background: rgba(34,197,94,.12);  color: var(--green2); border: 1px solid rgba(34,197,94,.3); }
+  .l-blue   { background: rgba(59,130,246,.12); color: var(--blue2);  border: 1px solid rgba(59,130,246,.3); }
+  .l-amber  { background: rgba(245,158,11,.12); color: #fbbf24;       border: 1px solid rgba(245,158,11,.3); }
+  .l-red    { background: rgba(239,68,68,.12);  color: #f87171;       border: 1px solid rgba(239,68,68,.3); }
+  .l-violet { background: rgba(139,92,246,.12); color: #a78bfa;       border: 1px solid rgba(139,92,246,.3); }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 16px; padding: 22px; }
+  .card-sm { padding: 14px; border-radius: 12px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+  .stripe-aws    { border-left: 3px solid var(--aws); }
+  .stripe-green  { border-left: 3px solid var(--green); }
+  .stripe-blue   { border-left: 3px solid var(--blue); }
+  .stripe-indigo { border-left: 3px solid var(--primary); }
+  .stripe-amber  { border-left: 3px solid var(--amber); }
+  .stripe-violet { border-left: 3px solid var(--violet); }
+  .stripe-red    { border-left: 3px solid var(--red); }
+
+  /* Hero */
+  .hero { padding: 64px 0 52px; background: radial-gradient(ellipse 900px 400px at 50% -80px, rgba(255,153,0,.12) 0%, transparent 70%); border-bottom: 1px solid var(--border); text-align: center; }
+  .hero-eye { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: .15em; color: var(--aws2); margin-bottom: 20px; display: flex; align-items: center; justify-content: center; gap: 8px; }
+  .hero-eye::before, .hero-eye::after { content: ''; flex: 1; max-width: 60px; height: 1px; background: var(--border); }
+  .grad-aws { background: linear-gradient(135deg, #FF9900 0%, #FFD580 50%, #FF9900 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+
+  /* Steps */
+  .step-block { background: var(--surface); border: 1px solid var(--border); border-radius: 14px; overflow: hidden; margin-bottom: 12px; }
+  .step-header { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .step-num { width: 28px; height: 28px; border-radius: 50%; background: var(--aws); color: #000; font-size: 12px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+  .step-header h3 { color: var(--text); margin: 0; }
+  .step-header .badge { margin-left: auto; }
+  .step-body { padding: 18px 20px; }
+  .step-body p { font-size: 13.5px; }
+  .step-body ul { margin-top: 10px; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+  .step-body li { display: flex; gap: 10px; font-size: 13px; color: var(--muted); }
+  .step-body li::before { content: '▸'; color: var(--aws); font-size: 10px; margin-top: 3px; flex-shrink: 0; }
+
+  /* Service map */
+  .svc-row { display: grid; grid-template-columns: 1fr 40px 1fr 1fr; align-items: center; gap: 12px; padding: 12px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; margin-bottom: 8px; font-size: 13px; }
+  .svc-row .svc-name { font-weight: 600; color: var(--text); }
+  .svc-row .arrow { color: var(--border2); font-size: 18px; font-weight: 700; text-align: center; }
+  .svc-row .aws-name { color: var(--aws2); font-weight: 600; }
+  .svc-row .note { color: var(--dim); font-size: 12px; }
+
+  /* Cost table */
+  .cost-table { width: 100%; border-collapse: collapse; margin-top: 16px; font-size: 13px; }
+  .cost-table th { text-align: left; padding: 10px 14px; font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: .1em; color: var(--dim); background: var(--surface2); border-bottom: 1px solid var(--border); }
+  .cost-table td { padding: 10px 14px; border-bottom: 1px solid rgba(51,65,85,.4); color: var(--muted); }
+  .cost-table td:first-child { color: var(--text); font-weight: 500; }
+  .cost-table tr:last-child td { border-bottom: none; }
+
+  /* Deploy row */
+  .deploy-row { display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; background: var(--surface2); border: 1px solid var(--border); border-radius: 10px; margin-top: 8px; font-size: 13px; }
+  .deploy-row .dnum { width: 22px; height: 22px; border-radius: 50%; background: var(--aws); color: #000; font-size: 10px; font-weight: 800; display: flex; align-items: center; justify-content: center; flex-shrink: 0; margin-top: 1px; }
+  .deploy-row .dcontent { flex: 1; }
+  .deploy-row .dtitle { font-weight: 600; color: var(--text); }
+  .deploy-row .dsub { color: var(--dim); font-size: 12px; margin-top: 2px; }
+
+  /* Arch SVG card */
+  .arch-wrap { background: var(--surface); border: 1px solid var(--border); border-radius: 20px; padding: 32px; margin-top: 28px; overflow-x: auto; }
+
+  /* Tip box */
+  .tip { background: rgba(255,153,0,.08); border: 1px solid rgba(255,153,0,.25); border-radius: 12px; padding: 14px 16px; margin-top: 14px; }
+  .tip-head { font-size: 11px; font-weight: 700; color: var(--aws2); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+  .tip p { font-size: 12.5px; color: var(--muted); }
+
+  .warn { background: rgba(239,68,68,.08); border: 1px solid rgba(239,68,68,.25); border-radius: 12px; padding: 14px 16px; margin-top: 14px; }
+  .warn-head { font-size: 11px; font-weight: 700; color: #f87171; text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+  .warn p { font-size: 12.5px; color: var(--muted); }
+
+  .good { background: rgba(34,197,94,.08); border: 1px solid rgba(34,197,94,.25); border-radius: 12px; padding: 14px 16px; margin-top: 14px; }
+  .good-head { font-size: 11px; font-weight: 700; color: var(--green2); text-transform: uppercase; letter-spacing: .1em; margin-bottom: 6px; }
+  .good p { font-size: 12.5px; color: var(--muted); }
+
+  .page-footer { text-align: center; padding: 40px 24px; border-top: 1px solid var(--border); font-size: 12px; color: var(--dim); }
+  @media(max-width:800px){ .grid-2,.grid-3{grid-template-columns:1fr;} h1{font-size:1.9rem;} .svc-row{grid-template-columns:1fr 30px 1fr;} .svc-row .note{display:none;} }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════════════
+     HERO
+══════════════════════════════════════════════════════ -->
+<div class="hero">
+  <div class="container">
+    <div class="hero-eye">Chenesa · Cloud Infrastructure</div>
+    <h1>Deploying to <span class="grad-aws">Amazon Web Services</span></h1>
+    <p style="max-width:580px;margin:20px auto 32px;font-size:1.05rem;line-height:1.7;color:var(--muted)">
+      A step-by-step guide to moving the entire Chenesa stack from Vercel + Railway + Supabase
+      onto AWS — with architecture diagrams, CLI commands, and cost estimates.
+    </p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <span class="label l-aws">AWS Amplify → Frontend</span>
+      <span class="label l-blue">AWS App Runner → Backend</span>
+      <span class="label l-green">AWS ECR → Docker Images</span>
+      <span class="label l-amber">Supabase → Keep as-is</span>
+      <span class="label l-violet">EventBridge → Scheduler</span>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 1 — STRATEGY
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label l-aws">Section 01</span>
+    <h2 style="margin-top:10px">Migration Strategy</h2>
+    <p>There are three levels of AWS migration. Start with Level 1 — it takes ~2 hours and changes nothing about how the app works.</p>
+
+    <div class="grid-3" style="margin-top:28px;gap:16px">
+      <div class="card stripe-green" style="background:rgba(34,197,94,.05)">
+        <div class="label l-green" style="margin-bottom:12px">Level 1 — Recommended</div>
+        <h3 style="color:var(--text)">Lift &amp; Shift</h3>
+        <p style="font-size:13px;margin-top:8px">Move frontend to Amplify, backend to App Runner. Keep Supabase for DB + Auth. Zero code changes needed.</p>
+        <div style="margin-top:14px;font-size:12px;color:var(--dim)">⏱ ~2 hours · $15–35/mo</div>
+      </div>
+      <div class="card stripe-amber">
+        <div class="label l-amber" style="margin-bottom:12px">Level 2 — Partial</div>
+        <h3 style="color:var(--text)">Managed Database</h3>
+        <p style="font-size:13px;margin-top:8px">Add AWS RDS (PostgreSQL) to replace Supabase DB. Keep Supabase Auth. Requires running SQL migrations.</p>
+        <div style="margin-top:14px;font-size:12px;color:var(--dim)">⏱ ~1 day · $40–80/mo</div>
+      </div>
+      <div class="card stripe-red">
+        <div class="label l-red" style="margin-bottom:12px">Level 3 — Full AWS</div>
+        <h3 style="color:var(--text)">Full Native AWS</h3>
+        <p style="font-size:13px;margin-top:8px">RDS + Cognito Auth + ECS Fargate + CloudFront + WAF + ALB. Enterprise-grade, requires AWS expertise.</p>
+        <div style="margin-top:14px;font-size:12px;color:var(--dim)">⏱ 1–2 weeks · $80–200/mo</div>
+      </div>
+    </div>
+
+    <div class="good" style="margin-top:20px">
+      <div class="good-head">✅ Recommendation for now</div>
+      <p>Start with <strong style="color:var(--green2)">Level 1</strong>. Your backend already has a <code>Dockerfile</code> — that's the hard part done. AWS App Runner reads it directly. Supabase keeps working unchanged. You can always migrate the DB later when you need more control.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 2 — SERVICE MAP
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label l-aws">Section 02</span>
+    <h2 style="margin-top:10px">Current Stack → AWS Service Map</h2>
+    <p>What replaces what, and why.</p>
+
+    <div style="margin-top:28px">
+      <div class="svc-row" style="background:rgba(99,102,241,.08);border-color:rgba(99,102,241,.3)">
+        <div><div class="label l-indigo" style="margin-bottom:6px">Current</div><div class="svc-name">▲ Vercel</div><div style="font-size:12px;color:var(--dim)">Next.js 14 hosting + CDN</div></div>
+        <div class="arrow">→</div>
+        <div><div class="label l-aws" style="margin-bottom:6px">AWS</div><div class="aws-name">AWS Amplify Hosting</div></div>
+        <div class="note">Same auto-deploy from GitHub. Supports Next.js SSR natively. Has built-in CDN (CloudFront under the hood). Free tier: 1,000 build mins/mo + 15 GB served.</div>
+      </div>
+      <div class="svc-row" style="background:rgba(192,38,211,.08);border-color:rgba(192,38,211,.3)">
+        <div><div class="label" style="background:rgba(192,38,211,.15);color:#e879f9;border:1px solid rgba(192,38,211,.3);margin-bottom:6px">Current</div><div class="svc-name">🚂 Railway</div><div style="font-size:12px;color:var(--dim)">FastAPI Python container</div></div>
+        <div class="arrow">→</div>
+        <div><div class="label l-aws" style="margin-bottom:6px">AWS</div><div class="aws-name">AWS App Runner</div></div>
+        <div class="note">Reads your existing Dockerfile from ECR. Auto-scales, no cluster management. Closest AWS equivalent to Railway. ~$25–40/mo at low traffic.</div>
+      </div>
+      <div class="svc-row">
+        <div><div class="label" style="background:rgba(62,207,142,.12);color:#4ade80;border:1px solid rgba(62,207,142,.3);margin-bottom:6px">Current</div><div class="svc-name">⚡ Supabase DB</div><div style="font-size:12px;color:var(--dim)">PostgreSQL database</div></div>
+        <div class="arrow">→</div>
+        <div><div class="label l-green" style="margin-bottom:6px">Keep</div><div class="aws-name" style="color:var(--green2)">Supabase (unchanged)</div></div>
+        <div class="note">Supabase works with any backend regardless of where it's hosted. No migration needed. Upgrade to paid plan ($25/mo) when you need more than 500 MB storage.</div>
+      </div>
+      <div class="svc-row">
+        <div><div class="label" style="background:rgba(62,207,142,.12);color:#4ade80;border:1px solid rgba(62,207,142,.3);margin-bottom:6px">Current</div><div class="svc-name">⚡ Supabase Auth</div><div style="font-size:12px;color:var(--dim)">JWT authentication</div></div>
+        <div class="arrow">→</div>
+        <div><div class="label l-green" style="margin-bottom:6px">Keep</div><div class="aws-name" style="color:var(--green2)">Supabase Auth (unchanged)</div></div>
+        <div class="note">Migrating to Cognito requires rewriting all auth code. Not worth it at this stage. Supabase Auth works perfectly with Amplify + App Runner.</div>
+      </div>
+      <div class="svc-row">
+        <div><div class="label" style="background:rgba(99,102,241,.15);color:#818cf8;border:1px solid rgba(99,102,241,.3);margin-bottom:6px">Current</div><div class="svc-name">⚙ GitHub Actions</div><div style="font-size:12px;color:var(--dim)">cron scheduler</div></div>
+        <div class="arrow">→</div>
+        <div><div class="label l-amber" style="margin-bottom:6px">Optional</div><div class="aws-name">AWS EventBridge + Lambda</div></div>
+        <div class="note">GitHub Actions works fine and is free. Only migrate to EventBridge if you want everything in AWS. EventBridge triggers a Lambda that calls your App Runner endpoint.</div>
+      </div>
+      <div class="svc-row">
+        <div><div class="label l-amber" style="margin-bottom:6px">New</div><div class="svc-name">🔐 Secrets</div><div style="font-size:12px;color:var(--dim)">Currently in Railway env vars</div></div>
+        <div class="arrow">→</div>
+        <div><div class="label l-aws" style="margin-bottom:6px">AWS</div><div class="aws-name">AWS Secrets Manager</div></div>
+        <div class="note">Store ANTHROPIC_API_KEY, Supabase keys, Google OAuth secrets. App Runner pulls them at runtime. $0.40/secret/mo — very cheap.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 3 — AWS ARCHITECTURE DIAGRAM
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label l-aws">Section 03</span>
+    <h2 style="margin-top:10px">AWS Architecture Diagram</h2>
+    <p>How the AWS-hosted Chenesa stack is connected.</p>
+
+    <div class="arch-wrap">
+      <svg viewBox="0 0 960 520" xmlns="http://www.w3.org/2000/svg" font-family="Inter,system-ui,sans-serif" style="width:100%;min-width:640px">
+        <defs>
+          <pattern id="g" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M40 0L0 0 0 40" fill="none" stroke="#334155" stroke-width=".4" opacity=".4"/>
+          </pattern>
+          <marker id="a1" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#FF9900"/></marker>
+          <marker id="a2" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#3ecf8e"/></marker>
+          <marker id="a3" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#6366f1"/></marker>
+          <marker id="a4" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto"><polygon points="0 0,8 3,0 6" fill="#475569"/></marker>
+        </defs>
+        <rect width="960" height="520" fill="url(#g)" opacity=".5"/>
+
+        <!-- USER -->
+        <rect x="380" y="20" width="200" height="60" rx="12" fill="#1e293b" stroke="#FF9900" stroke-width="1.5"/>
+        <text x="480" y="46" text-anchor="middle" fill="#f1f5f9" font-size="13" font-weight="700">👤 User / Browser</text>
+        <text x="480" y="64" text-anchor="middle" fill="#94a3b8" font-size="10">chenesa.yourapp.com</text>
+
+        <!-- AWS BOUNDARY -->
+        <rect x="20" y="110" width="920" height="380" rx="18" fill="none" stroke="#FF9900" stroke-width="1.2" stroke-dasharray="8,4" opacity=".4"/>
+        <text x="36" y="130" fill="#FF9900" font-size="10" font-weight="700" opacity=".7">☁  AWS Cloud  (us-east-1)</text>
+
+        <!-- ROUTE 53 -->
+        <rect x="380" y="140" width="200" height="55" rx="10" fill="#1e293b" stroke="#FF9900" stroke-width="1.2"/>
+        <text x="480" y="163" text-anchor="middle" fill="#FFB347" font-size="11" font-weight="700">🌐 ROUTE 53</text>
+        <text x="480" y="181" text-anchor="middle" fill="#94a3b8" font-size="10">DNS · yourapp.com</text>
+
+        <!-- AMPLIFY -->
+        <rect x="60" y="240" width="220" height="75" rx="12" fill="#1e293b" stroke="#FF9900" stroke-width="2"/>
+        <text x="170" y="264" text-anchor="middle" fill="#FFB347" font-size="11" font-weight="700">⚡ AWS AMPLIFY</text>
+        <text x="170" y="282" text-anchor="middle" fill="#f1f5f9" font-size="12" font-weight="600">Next.js Frontend</text>
+        <text x="170" y="299" text-anchor="middle" fill="#94a3b8" font-size="10">CloudFront CDN · SSR · Auto-deploy</text>
+
+        <!-- APP RUNNER -->
+        <rect x="360" y="240" width="240" height="75" rx="12" fill="#1e293b" stroke="#FF9900" stroke-width="2"/>
+        <text x="480" y="264" text-anchor="middle" fill="#FFB347" font-size="11" font-weight="700">🚀 AWS APP RUNNER</text>
+        <text x="480" y="282" text-anchor="middle" fill="#f1f5f9" font-size="12" font-weight="600">FastAPI Backend</text>
+        <text x="480" y="299" text-anchor="middle" fill="#94a3b8" font-size="10">Auto-scale · HTTPS · Dockerfile</text>
+
+        <!-- ECR -->
+        <rect x="680" y="240" width="200" height="75" rx="12" fill="#1e293b" stroke="#FF9900" stroke-width="1.5"/>
+        <text x="780" y="264" text-anchor="middle" fill="#FFB347" font-size="11" font-weight="700">📦 AWS ECR</text>
+        <text x="780" y="282" text-anchor="middle" fill="#f1f5f9" font-size="12" font-weight="600">Container Registry</text>
+        <text x="780" y="299" text-anchor="middle" fill="#94a3b8" font-size="10">Docker images · versioned tags</text>
+
+        <!-- SECRETS MANAGER -->
+        <rect x="60" y="360" width="200" height="65" rx="12" fill="#1e293b" stroke="#f59e0b" stroke-width="1.2"/>
+        <text x="160" y="384" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">🔐 SECRETS MANAGER</text>
+        <text x="160" y="402" text-anchor="middle" fill="#f1f5f9" font-size="11">API keys · OAuth secrets</text>
+        <text x="160" y="417" text-anchor="middle" fill="#94a3b8" font-size="10">Supabase · Anthropic · Google</text>
+
+        <!-- EVENTBRIDGE (optional) -->
+        <rect x="680" y="360" width="200" height="65" rx="12" fill="#1e293b" stroke="#6366f1" stroke-width="1.2" stroke-dasharray="5,3"/>
+        <text x="780" y="384" text-anchor="middle" fill="#818cf8" font-size="11" font-weight="700">⏰ EVENTBRIDGE</text>
+        <text x="780" y="402" text-anchor="middle" fill="#f1f5f9" font-size="11">Cron every 6h</text>
+        <text x="780" y="417" text-anchor="middle" fill="#94a3b8" font-size="10">optional — GitHub Actions works too</text>
+
+        <!-- SUPABASE (external) -->
+        <rect x="360" y="455" width="240" height="55" rx="12" fill="#1e293b" stroke="#3ecf8e" stroke-width="1.5"/>
+        <text x="480" y="479" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="700">⚡ SUPABASE (external)</text>
+        <text x="480" y="497" text-anchor="middle" fill="#94a3b8" font-size="10">PostgreSQL · Auth · RLS — unchanged</text>
+
+        <!-- ANTHROPIC (external) -->
+        <rect x="60" y="455" width="200" height="55" rx="12" fill="#1e293b" stroke="#d97706" stroke-width="1.2"/>
+        <text x="160" y="479" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700">🤖 ANTHROPIC</text>
+        <text x="160" y="497" text-anchor="middle" fill="#94a3b8" font-size="10">Claude Haiku 4.5 — external API</text>
+
+        <!-- ARROWS -->
+        <!-- User → Route 53 -->
+        <line x1="480" y1="80" x2="480" y2="140" stroke="#FF9900" stroke-width="1.8" marker-end="url(#a1)"/>
+
+        <!-- Route 53 → Amplify -->
+        <path d="M420 168 L230 240" stroke="#FF9900" stroke-width="1.5" fill="none" marker-end="url(#a1)"/>
+        <text x="300" y="200" fill="#FFB347" font-size="10">/*.com</text>
+
+        <!-- Route 53 → App Runner -->
+        <path d="M480 195 L480 240" stroke="#FF9900" stroke-width="1.5" fill="none" marker-end="url(#a1)"/>
+        <text x="490" y="222" fill="#FFB347" font-size="10">/api.*</text>
+
+        <!-- Amplify → App Runner (API calls) -->
+        <path d="M280 278 L360 278" stroke="#FF9900" stroke-width="1.5" stroke-dasharray="5,3" fill="none" marker-end="url(#a1)"/>
+        <text x="300" y="271" fill="#FFB347" font-size="9">REST API</text>
+
+        <!-- App Runner ← ECR (pull image) -->
+        <path d="M680 270 L600 270" stroke="#FF9900" stroke-width="1.5" fill="none" marker-end="url(#a1)"/>
+        <text x="628" y="263" fill="#FFB347" font-size="9">pull image</text>
+
+        <!-- App Runner → Supabase -->
+        <path d="M480 315 L480 455" stroke="#3ecf8e" stroke-width="1.5" fill="none" marker-end="url(#a2)"/>
+        <text x="490" y="390" fill="#4ade80" font-size="9">DB + Auth</text>
+
+        <!-- App Runner → Anthropic -->
+        <path d="M380 300 L240 455" stroke="#d97706" stroke-width="1.5" fill="none" marker-end="url(#a1)" style="marker-end:url(#a4)"/>
+        <text x="278" y="378" fill="#fbbf24" font-size="9">Claude API</text>
+
+        <!-- App Runner → Secrets -->
+        <path d="M400 315 L240 360" stroke="#f59e0b" stroke-width="1.3" fill="none" marker-end="url(#a1)" style="marker-end:url(#a4)"/>
+
+        <!-- Amplify → Supabase (auth) -->
+        <path d="M170 315 L170 440 L420 480" stroke="#3ecf8e" stroke-width="1.3" stroke-dasharray="5,3" fill="none" marker-end="url(#a2)"/>
+
+        <!-- EventBridge → App Runner -->
+        <path d="M740 360 L590 315" stroke="#6366f1" stroke-width="1.2" stroke-dasharray="4,3" fill="none" marker-end="url(#a3)"/>
+        <text x="680" y="340" fill="#818cf8" font-size="9">POST /scheduler</text>
+
+        <!-- Legend -->
+        <line x1="30" y1="500" x2="58" y2="500" stroke="#FF9900" stroke-width="1.5"/>
+        <text x="64" y="504" fill="#64748b" font-size="10">AWS internal</text>
+        <line x1="140" y1="500" x2="168" y2="500" stroke="#3ecf8e" stroke-width="1.5"/>
+        <text x="174" y="504" fill="#64748b" font-size="10">External service</text>
+        <line x1="260" y1="500" x2="288" y2="500" stroke="#6366f1" stroke-width="1.2" stroke-dasharray="3,2"/>
+        <text x="294" y="504" fill="#64748b" font-size="10">Optional / scheduled</text>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 4 — PREREQUISITES
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label l-aws">Section 04</span>
+    <h2 style="margin-top:10px">Before You Start</h2>
+    <p>Set these up first. Most are free-tier eligible.</p>
+
+    <div class="grid-2" style="margin-top:24px;gap:16px">
+      <div class="card stripe-aws">
+        <h3 style="color:var(--text);margin-bottom:12px">AWS Account Setup</h3>
+        <ul style="list-style:none;display:flex;flex-direction:column;gap:8px;font-size:13px">
+          <li style="display:flex;gap:10px;color:var(--muted)"><span style="color:var(--aws)">1.</span> Sign up at <strong style="color:var(--text)">aws.amazon.com</strong> (free tier lasts 12 months)</li>
+          <li style="display:flex;gap:10px;color:var(--muted)"><span style="color:var(--aws)">2.</span> Create an <strong style="color:var(--text)">IAM user</strong> with programmatic access — never use root credentials</li>
+          <li style="display:flex;gap:10px;color:var(--muted)"><span style="color:var(--aws)">3.</span> Attach policies: <code>AdministratorAccess</code> (for setup, restrict later)</li>
+          <li style="display:flex;gap:10px;color:var(--muted)"><span style="color:var(--aws)">4.</span> Download Access Key ID + Secret Access Key</li>
+          <li style="display:flex;gap:10px;color:var(--muted)"><span style="color:var(--aws)">5.</span> Enable MFA on root account</li>
+        </ul>
+      </div>
+      <div class="card stripe-blue">
+        <h3 style="color:var(--text);margin-bottom:12px">CLI Tools to Install</h3>
+        <pre><span class="c"># AWS CLI v2</span>
+<span class="c"># Windows — download from:</span>
+<span class="s">https://awscli.amazonaws.com/AWSCLIV2.msi</span>
+
+<span class="c"># Configure with your IAM credentials</span>
+<span class="k">aws</span> configure
+<span class="c"># AWS Access Key ID: AKIA...</span>
+<span class="c"># AWS Secret Access Key: ...</span>
+<span class="c"># Default region: us-east-1</span>
+<span class="c"># Default output: json</span>
+
+<span class="c"># Docker Desktop (for building images)</span>
+<span class="s">https://www.docker.com/products/docker-desktop</span>
+
+<span class="c"># Amplify CLI</span>
+<span class="k">npm</span> install -g @aws-amplify/cli</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 5 — STEP BY STEP
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label l-aws">Section 05</span>
+    <h2 style="margin-top:10px">Step-by-Step Deployment</h2>
+    <p>Follow these steps in order. Total time: ~2 hours for Level 1.</p>
+
+    <!-- STEP 1 -->
+    <div class="step-block" style="margin-top:28px">
+      <div class="step-header">
+        <div class="step-num">1</div>
+        <h3>Create ECR Repository (Docker image storage)</h3>
+        <span class="label l-aws badge">5 mins</span>
+      </div>
+      <div class="step-body">
+        <p>ECR (Elastic Container Registry) stores your backend Docker image. App Runner pulls from it.</p>
+        <pre><span class="c"># Create the ECR repository</span>
+<span class="k">aws</span> ecr create-repository \
+  --repository-name chenesa-backend \
+  --region us-east-1
+
+<span class="c"># Note the repositoryUri from the output — looks like:</span>
+<span class="c"># 123456789.dkr.ecr.us-east-1.amazonaws.com/chenesa-backend</span></pre>
+        <ul>
+          <li>Log into the AWS Console → ECR → confirm the repo appears</li>
+          <li>Copy the full URI — you'll need it in step 2</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- STEP 2 -->
+    <div class="step-block">
+      <div class="step-header">
+        <div class="step-num">2</div>
+        <h3>Build &amp; Push Backend Docker Image to ECR</h3>
+        <span class="label l-aws badge">15 mins</span>
+      </div>
+      <div class="step-body">
+        <p>Your backend already has a <code>Dockerfile</code> in <code>backend/</code>. Build it and push to ECR.</p>
+        <pre><span class="c"># From the Chenesa project root — replace YOUR_ACCOUNT_ID</span>
+<span class="v">ACCOUNT_ID</span>=<span class="s">123456789012</span>
+<span class="v">REGION</span>=<span class="s">us-east-1</span>
+<span class="v">REPO</span>=<span class="s">${ACCOUNT_ID}.dkr.ecr.${REGION}.amazonaws.com/chenesa-backend</span>
+
+<span class="c"># 1. Authenticate Docker to ECR</span>
+<span class="k">aws</span> ecr get-login-password --region <span class="v">${REGION}</span> \
+  | docker login --username AWS --password-stdin <span class="v">${REPO}</span>
+
+<span class="c"># 2. Build the image (from backend/ folder)</span>
+<span class="k">docker</span> build -t chenesa-backend ./backend
+
+<span class="c"># 3. Tag it for ECR</span>
+<span class="k">docker</span> tag chenesa-backend:latest <span class="v">${REPO}</span>:latest
+
+<span class="c"># 4. Push to ECR</span>
+<span class="k">docker</span> push <span class="v">${REPO}</span>:latest</pre>
+        <div class="tip">
+          <div class="tip-head">💡 Automate this with GitHub Actions</div>
+          <p>After manual setup works, add a <code>.github/workflows/deploy-backend.yml</code> that builds + pushes to ECR on every push to main. App Runner can be configured to auto-redeploy when the ECR image changes.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 3 -->
+    <div class="step-block">
+      <div class="step-header">
+        <div class="step-num">3</div>
+        <h3>Store Secrets in AWS Secrets Manager</h3>
+        <span class="label l-amber badge">10 mins</span>
+      </div>
+      <div class="step-body">
+        <p>Move all environment variables out of Railway into AWS Secrets Manager. App Runner will inject them at runtime.</p>
+        <pre><span class="c"># Store each secret (replace values with your real ones)</span>
+<span class="k">aws</span> secretsmanager create-secret \
+  --name chenesa/supabase-url \
+  --secret-string <span class="s">"https://xxxx.supabase.co"</span>
+
+<span class="k">aws</span> secretsmanager create-secret \
+  --name chenesa/supabase-service-key \
+  --secret-string <span class="s">"eyJh..."</span>
+
+<span class="k">aws</span> secretsmanager create-secret \
+  --name chenesa/anthropic-api-key \
+  --secret-string <span class="s">"sk-ant-..."</span>
+
+<span class="k">aws</span> secretsmanager create-secret \
+  --name chenesa/google-client-id \
+  --secret-string <span class="s">"123456.apps.googleusercontent.com"</span>
+
+<span class="k">aws</span> secretsmanager create-secret \
+  --name chenesa/google-client-secret \
+  --secret-string <span class="s">"GOCSPX-..."</span>
+
+<span class="k">aws</span> secretsmanager create-secret \
+  --name chenesa/frontend-url \
+  --secret-string <span class="s">"https://www.yourapp.com"</span>
+
+<span class="k">aws</span> secretsmanager create-secret \
+  --name chenesa/cron-secret \
+  --secret-string <span class="s">"your-random-secret"</span></pre>
+        <ul>
+          <li>Cost: $0.40 per secret per month = ~$3/mo total — very cheap</li>
+          <li>All secrets are encrypted with KMS at rest automatically</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- STEP 4 -->
+    <div class="step-block">
+      <div class="step-header">
+        <div class="step-num">4</div>
+        <h3>Deploy Backend on AWS App Runner</h3>
+        <span class="label l-aws badge">20 mins</span>
+      </div>
+      <div class="step-body">
+        <p>App Runner is the AWS equivalent of Railway — it runs your Docker container with auto-scaling and zero cluster management.</p>
+        <pre><span class="c"># First create an IAM role for App Runner to pull from ECR</span>
+<span class="c"># Go to: AWS Console → IAM → Roles → Create Role</span>
+<span class="c"># Trusted entity: App Runner → Add policy: AmazonEC2ContainerRegistryReadOnly</span>
+<span class="c"># Name it: AppRunnerECRAccessRole</span>
+
+<span class="c"># Then in AWS Console → App Runner → Create Service:</span>
+<span class="c">#   Source: Container registry → Amazon ECR</span>
+<span class="c">#   Image URI: 123456789.dkr.ecr.us-east-1.amazonaws.com/chenesa-backend:latest</span>
+<span class="c">#   Deployment trigger: Automatic (redeploys when image updates)</span>
+<span class="c">#   Port: 8000</span>
+<span class="c">#   CPU: 0.25 vCPU  |  Memory: 0.5 GB  (cheapest, scales up if needed)</span>
+<span class="c">#   Health check: GET /health  (add this endpoint to FastAPI if not exists)</span></pre>
+
+        <p style="margin-top:14px;font-size:13px">Then add environment variables in the App Runner console (Environment variables section):</p>
+        <pre><span class="c"># In App Runner → Configuration → Environment variables</span>
+SUPABASE_URL        = <span class="s">(from Secrets Manager)</span>
+SUPABASE_SERVICE_KEY = <span class="s">(from Secrets Manager)</span>
+ANTHROPIC_API_KEY   = <span class="s">(from Secrets Manager)</span>
+GOOGLE_CLIENT_ID    = <span class="s">(from Secrets Manager)</span>
+GOOGLE_CLIENT_SECRET = <span class="s">(from Secrets Manager)</span>
+FRONTEND_URL        = <span class="s">https://www.yourapp.com</span>
+CRON_SECRET         = <span class="s">(from Secrets Manager)</span>
+PORT                = <span class="s">8000</span></pre>
+        <ul>
+          <li>App Runner gives you a URL like <code>abc123.us-east-1.awsapprunner.com</code></li>
+          <li>Update Google OAuth console: add this URL to <strong>Authorised redirect URIs</strong></li>
+          <li>Test: visit <code>https://abc123.us-east-1.awsapprunner.com/docs</code> — you should see FastAPI Swagger</li>
+        </ul>
+        <div class="tip">
+          <div class="tip-head">💡 Update Google OAuth Redirect URI</div>
+          <p>Go to <strong>Google Cloud Console → APIs &amp; Services → Credentials → your OAuth client</strong> and add your new App Runner URL to the Authorised redirect URIs list: <code>https://abc123.us-east-1.awsapprunner.com/auth/gmail/callback</code></p>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 5 -->
+    <div class="step-block">
+      <div class="step-header">
+        <div class="step-num">5</div>
+        <h3>Deploy Frontend on AWS Amplify</h3>
+        <span class="label l-aws badge">20 mins</span>
+      </div>
+      <div class="step-body">
+        <p>Amplify reads your GitHub repo, detects Next.js automatically, and builds + deploys on every push — exactly like Vercel.</p>
+        <pre><span class="c"># Option A: Via AWS Console (recommended first time)</span>
+<span class="c"># AWS Console → Amplify → Create new app → GitHub</span>
+<span class="c"># Select repo: Luke-Manyamazi/Chenesa</span>
+<span class="c"># Branch: main</span>
+<span class="c"># Root directory: frontend</span>
+<span class="c"># Framework: Next.js (auto-detected)</span>
+
+<span class="c"># Option B: Via Amplify CLI</span>
+<span class="k">cd</span> frontend
+<span class="k">amplify</span> init
+<span class="k">amplify</span> add hosting
+<span class="c"># Select: Hosting with Amplify Console</span>
+<span class="c"># Select: Continuous deployment (Git-based)</span>
+<span class="k">amplify</span> publish</pre>
+
+        <p style="margin-top:14px;font-size:13px">Set environment variables in Amplify Console → App settings → Environment variables:</p>
+        <pre><span class="c"># Amplify → App settings → Environment variables</span>
+NEXT_PUBLIC_SUPABASE_URL      = <span class="s">https://xxxx.supabase.co</span>
+NEXT_PUBLIC_SUPABASE_ANON_KEY = <span class="s">eyJh...</span>
+NEXT_PUBLIC_API_URL           = <span class="s">https://abc123.us-east-1.awsapprunner.com</span></pre>
+
+        <ul>
+          <li>Amplify gives you a URL like <code>main.abc123.amplifyapp.com</code></li>
+          <li>Add a custom domain in Amplify → Domain management → Add domain</li>
+          <li>SSL certificate is issued automatically via ACM (free)</li>
+        </ul>
+        <div class="good">
+          <div class="good-head">✅ Next.js SSR fully supported</div>
+          <p>Amplify handles Next.js Server Components, API routes, and middleware correctly. It uses Lambda@Edge under the hood for SSR — no configuration needed.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- STEP 6 -->
+    <div class="step-block">
+      <div class="step-header">
+        <div class="step-num">6</div>
+        <h3>Configure Custom Domain with Route 53</h3>
+        <span class="label l-amber badge">15 mins</span>
+      </div>
+      <div class="step-body">
+        <p>Point your domain (e.g., <code>chenesa.com</code>) at AWS. Route 53 handles DNS; ACM issues the SSL cert automatically.</p>
+        <pre><span class="c"># 1. Register or transfer domain in Route 53 (or use existing registrar)</span>
+<span class="c"># AWS Console → Route 53 → Hosted zones → Create hosted zone</span>
+<span class="c"># Domain: chenesa.com</span>
+
+<span class="c"># 2. Add a CNAME for your frontend</span>
+<span class="c"># Record: www → main.abc123.amplifyapp.com</span>
+<span class="c"># (Amplify will also verify and issue the cert automatically)</span>
+
+<span class="c"># 3. Add a CNAME for your backend API</span>
+<span class="c"># Record: api → abc123.us-east-1.awsapprunner.com</span>
+<span class="c"># (Use custom domain in App Runner too for clean URLs)</span>
+
+<span class="c"># 4. Update App Runner custom domain</span>
+<span class="k">aws</span> apprunner associate-custom-domain \
+  --service-arn arn:aws:apprunner:... \
+  --domain-name api.chenesa.com</pre>
+        <ul>
+          <li>Route 53 hosted zone: $0.50/mo per zone</li>
+          <li>DNS queries: $0.40 per million queries</li>
+          <li>ACM certificates: free when used with AWS services</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- STEP 7 -->
+    <div class="step-block">
+      <div class="step-header">
+        <div class="step-num">7</div>
+        <h3>Update Environment Variables</h3>
+        <span class="label l-green badge">5 mins</span>
+      </div>
+      <div class="step-body">
+        <p>Now that both services have real URLs, wire them together.</p>
+        <pre><span class="c"># In Amplify → Environment variables, update:</span>
+NEXT_PUBLIC_API_URL = <span class="s">https://api.chenesa.com</span>
+
+<span class="c"># In App Runner → Environment variables, update:</span>
+FRONTEND_URL = <span class="s">https://www.chenesa.com</span>
+
+<span class="c"># In Google Cloud Console → OAuth credentials, update redirect URI:</span>
+<span class="s">https://api.chenesa.com/auth/gmail/callback</span>
+
+<span class="c"># In GitHub Actions secret BACKEND_URL, update:</span>
+<span class="s">https://api.chenesa.com</span></pre>
+        <ul>
+          <li>Redeploy both services after updating env vars</li>
+          <li>Test Gmail OAuth end-to-end with the new URLs</li>
+          <li>Test a cleaning run to confirm Anthropic API calls still work</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- STEP 8 — OPTIONAL EVENTBRIDGE -->
+    <div class="step-block">
+      <div class="step-header">
+        <div class="step-num">8</div>
+        <h3>(Optional) Replace GitHub Actions Scheduler with EventBridge + Lambda</h3>
+        <span class="label l-violet badge">Optional · 30 mins</span>
+      </div>
+      <div class="step-body">
+        <p>GitHub Actions already works and is free. Only do this if you want everything in AWS.</p>
+        <pre><span class="c"># Create a Lambda function that calls the backend scheduler</span>
+<span class="c"># Lambda → Create function → Author from scratch</span>
+<span class="c"># Runtime: Python 3.12</span>
+
+<span class="c"># Lambda code (paste into inline editor):</span>
+<span class="k">import</span> urllib.request, os, json
+
+<span class="k">def</span> <span class="h">handler</span>(event, context):
+    url = os.environ[<span class="s">'BACKEND_URL'</span>] + <span class="s">'/scheduler/trigger'</span>
+    req = urllib.request.Request(url, method=<span class="s">'POST'</span>)
+    req.add_header(<span class="s">'x-scheduler-secret'</span>, os.environ[<span class="s">'CRON_SECRET'</span>])
+    urllib.request.urlopen(req, timeout=30)
+
+<span class="c"># EventBridge → Rules → Create rule</span>
+<span class="c"># Schedule: cron(0 */6 * * ? *)   ← every 6 hours</span>
+<span class="c"># Target: your Lambda function</span>
+
+<span class="c"># Set Lambda env vars:</span>
+<span class="c"># BACKEND_URL = https://api.chenesa.com</span>
+<span class="c"># CRON_SECRET = your-cron-secret</span></pre>
+        <ul>
+          <li>EventBridge rule: free for scheduled events</li>
+          <li>Lambda invocations: first 1M per month free forever</li>
+          <li>Total cost for scheduler: $0/mo</li>
+        </ul>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 6 — AUTO-DEPLOY CI/CD ON AWS
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label l-aws">Section 06</span>
+    <h2 style="margin-top:10px">Auto-Deploy CI/CD Pipeline</h2>
+    <p>Set this up so every <code>git push origin main</code> automatically deploys both services — same as the current Vercel + Railway workflow.</p>
+
+    <div class="grid-2" style="margin-top:24px;gap:20px">
+
+      <div class="card">
+        <h3 style="color:var(--text);margin-bottom:14px">▲ Frontend (Amplify)</h3>
+        <p style="font-size:13px">Amplify connects directly to GitHub — no workflow file needed. Just enable in the console:</p>
+        <div class="deploy-row stripe-aws" style="margin-top:12px">
+          <div class="dnum">1</div>
+          <div class="dcontent"><div class="dtitle">Amplify → App settings → General</div><div class="dsub">Connect GitHub → select Chenesa repo → branch: main → root: frontend/</div></div>
+        </div>
+        <div class="deploy-row stripe-aws">
+          <div class="dnum">2</div>
+          <div class="dcontent"><div class="dtitle">Set build settings</div><div class="dsub">Amplify auto-detects Next.js and generates correct build config</div></div>
+        </div>
+        <div class="deploy-row stripe-green">
+          <div class="dnum">3</div>
+          <div class="dcontent"><div class="dtitle">Done — auto-deploys on every push</div><div class="dsub">~3 min build time. Preview deploys for PRs are free too.</div></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="color:var(--text);margin-bottom:14px">🚂 Backend (ECR + App Runner)</h3>
+        <p style="font-size:13px">Add this GitHub Actions workflow file to auto-build and push the Docker image:</p>
+        <pre style="font-size:11px"><span class="c"># .github/workflows/deploy-backend.yml</span>
+<span class="k">name:</span> Deploy Backend
+<span class="k">on:</span>
+  <span class="k">push:</span>
+    <span class="k">branches:</span> [main]
+    <span class="k">paths:</span> [<span class="s">'backend/**'</span>]
+
+<span class="k">jobs:</span>
+  <span class="k">deploy:</span>
+    <span class="k">runs-on:</span> ubuntu-latest
+    <span class="k">steps:</span>
+      - <span class="k">uses:</span> actions/checkout@v4
+      - <span class="k">name:</span> Configure AWS
+        <span class="k">uses:</span> aws-actions/configure-aws-credentials@v4
+        <span class="k">with:</span>
+          <span class="k">aws-access-key-id:</span> ${{ secrets.AWS_KEY }}
+          <span class="k">aws-secret-access-key:</span> ${{ secrets.AWS_SECRET }}
+          <span class="k">aws-region:</span> us-east-1
+      - <span class="k">name:</span> Build &amp; Push to ECR
+        <span class="k">run:</span> |
+          aws ecr get-login-password | \
+            docker login --username AWS \
+            --password-stdin $ECR_URI
+          docker build -t $ECR_URI:latest ./backend
+          docker push $ECR_URI:latest
+        <span class="k">env:</span>
+          <span class="k">ECR_URI:</span> ${{ secrets.ECR_URI }}</pre>
+        <div class="tip" style="margin-top:10px">
+          <div class="tip-head">💡 App Runner auto-redeployment</div>
+          <p>In App Runner settings, enable <strong>"Automatic deployment"</strong> — it watches ECR and redeploys within 2 mins when a new image is pushed.</p>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 7 — COST ESTIMATE
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label l-aws">Section 07</span>
+    <h2 style="margin-top:10px">Cost Estimate</h2>
+    <p>Monthly costs at low traffic (under 100 users). AWS free tier applies to new accounts for 12 months.</p>
+
+    <div class="grid-2" style="margin-top:24px;gap:20px">
+
+      <div class="card">
+        <h3 style="color:var(--text);margin-bottom:16px">Current Stack</h3>
+        <table class="cost-table">
+          <thead><tr><th>Service</th><th>Plan</th><th>Cost/mo</th></tr></thead>
+          <tbody>
+            <tr><td>Vercel</td><td>Hobby (free)</td><td style="color:var(--green2);font-weight:700">$0</td></tr>
+            <tr><td>Railway</td><td>Starter</td><td style="color:var(--amber);font-weight:700">~$10</td></tr>
+            <tr><td>Supabase</td><td>Free tier</td><td style="color:var(--green2);font-weight:700">$0</td></tr>
+            <tr><td>Anthropic</td><td>Pay-per-use</td><td style="color:var(--amber);font-weight:700">~$2–5</td></tr>
+            <tr><td>GitHub Actions</td><td>Free tier</td><td style="color:var(--green2);font-weight:700">$0</td></tr>
+            <tr style="background:rgba(34,197,94,.05)"><td style="font-weight:700;color:var(--text)">Total</td><td></td><td style="color:var(--green2);font-weight:800">~$12–15/mo</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+      <div class="card">
+        <h3 style="color:var(--text);margin-bottom:16px">AWS Stack (Level 1)</h3>
+        <table class="cost-table">
+          <thead><tr><th>Service</th><th>Plan</th><th>Cost/mo</th></tr></thead>
+          <tbody>
+            <tr><td>AWS Amplify</td><td>Free tier → $0.01/GB served</td><td style="color:var(--green2);font-weight:700">$0–3</td></tr>
+            <tr><td>AWS App Runner</td><td>0.25 vCPU / 0.5 GB</td><td style="color:var(--amber);font-weight:700">~$15–25</td></tr>
+            <tr><td>AWS ECR</td><td>Storage + transfer</td><td style="color:var(--green2);font-weight:700">~$1</td></tr>
+            <tr><td>Route 53</td><td>1 hosted zone</td><td style="color:var(--green2);font-weight:700">$0.50</td></tr>
+            <tr><td>Secrets Manager</td><td>7 secrets</td><td style="color:var(--green2);font-weight:700">~$3</td></tr>
+            <tr><td>Supabase</td><td>Free tier (kept)</td><td style="color:var(--green2);font-weight:700">$0</td></tr>
+            <tr><td>Anthropic</td><td>Pay-per-use (kept)</td><td style="color:var(--amber);font-weight:700">~$2–5</td></tr>
+            <tr style="background:rgba(255,153,0,.05)"><td style="font-weight:700;color:var(--text)">Total</td><td></td><td style="color:var(--aws2);font-weight:800">~$22–37/mo</td></tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+
+    <div class="warn" style="margin-top:16px">
+      <div class="warn-head">⚠ App Runner minimum cost</div>
+      <p>App Runner charges even when idle (~$7/mo minimum for 0.25 vCPU). If you want zero idle cost, use <strong>AWS Lambda + API Gateway</strong> instead (pay only per request). But Lambda requires packaging FastAPI as a Lambda function using <code>Mangum</code> adapter — more setup work.</p>
+    </div>
+
+    <div class="tip" style="margin-top:12px">
+      <div class="tip-head">💡 AWS Free Tier (first 12 months)</div>
+      <p>New AWS accounts get: 750 hrs/mo EC2 t2.micro, 1M Lambda requests/mo, 5 GB S3, 1M EventBridge events. App Runner is <strong>not</strong> on the free tier but ECR gets 500 MB free storage.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 8 — FUTURE LEVEL 2 (RDS)
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label l-blue">Section 08</span>
+    <h2 style="margin-top:10px">Level 2 — Adding AWS RDS (Optional Later)</h2>
+    <p>When you need more DB control, compliance requirements, or >500 MB data, migrate from Supabase to RDS PostgreSQL.</p>
+
+    <div class="grid-2" style="margin-top:24px;gap:16px">
+      <div class="card stripe-blue">
+        <h3 style="color:var(--text);margin-bottom:12px">Migrate DB to RDS</h3>
+        <pre style="font-size:11px"><span class="c"># 1. Launch RDS PostgreSQL in AWS Console</span>
+<span class="c"># Engine: PostgreSQL 15</span>
+<span class="c"># Instance: db.t3.micro (~$15/mo)</span>
+<span class="c"># Storage: 20 GB gp2</span>
+<span class="c"># Multi-AZ: No (enable for prod HA)</span>
+<span class="c"># VPC: same as App Runner</span>
+
+<span class="c"># 2. Export Supabase data</span>
+<span class="k">pg_dump</span> "postgres://postgres:pass@\
+  xxxx.supabase.co:5432/postgres" \
+  > chenesa_backup.sql
+
+<span class="c"># 3. Import to RDS</span>
+<span class="k">psql</span> "postgres://admin:pass@\
+  rds-endpoint.us-east-1.rds.amazonaws.com\
+  /chenesa" < chenesa_backup.sql
+
+<span class="c"># 4. Update App Runner env var</span>
+DATABASE_URL = postgres://admin:pass@rds-endpoint...</pre>
+      </div>
+      <div class="card stripe-violet">
+        <h3 style="color:var(--text);margin-bottom:12px">Keep Supabase Auth</h3>
+        <p style="font-size:13px">Even with RDS for storage, keep Supabase Auth for JWTs. It saves you from building user management, email verification, password reset, MFA, and OAuth from scratch.</p>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:8px;font-size:12px">
+          <div style="display:flex;gap:8px"><span style="color:var(--green2)">✓</span><span style="color:var(--muted)">Supabase Auth works with any PostgreSQL DB</span></div>
+          <div style="display:flex;gap:8px"><span style="color:var(--green2)">✓</span><span style="color:var(--muted)">Keep using JWT validation in FastAPI middleware</span></div>
+          <div style="display:flex;gap:8px"><span style="color:var(--green2)">✓</span><span style="color:var(--muted)">User profile data can live in RDS, auth in Supabase</span></div>
+          <div style="display:flex;gap:8px"><span style="color:var(--red)">✗</span><span style="color:var(--muted)">Migrating to Cognito = rewriting all auth code (not worth it)</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 9 — QUICK REFERENCE
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label l-green">Section 09</span>
+    <h2 style="margin-top:10px">Quick Reference Cheat Sheet</h2>
+    <p>Commands and URLs you'll use repeatedly during setup.</p>
+
+    <div class="grid-2" style="margin-top:24px;gap:20px">
+      <div class="card">
+        <h3 style="color:var(--text);margin-bottom:12px">AWS Console URLs</h3>
+        <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+          <div style="padding:7px 12px;background:var(--surface2);border-radius:8px;display:flex;justify-content:space-between">
+            <span style="color:var(--muted)">ECR</span><code>console.aws.amazon.com/ecr</code>
+          </div>
+          <div style="padding:7px 12px;background:var(--surface2);border-radius:8px;display:flex;justify-content:space-between">
+            <span style="color:var(--muted)">App Runner</span><code>console.aws.amazon.com/apprunner</code>
+          </div>
+          <div style="padding:7px 12px;background:var(--surface2);border-radius:8px;display:flex;justify-content:space-between">
+            <span style="color:var(--muted)">Amplify</span><code>console.aws.amazon.com/amplify</code>
+          </div>
+          <div style="padding:7px 12px;background:var(--surface2);border-radius:8px;display:flex;justify-content:space-between">
+            <span style="color:var(--muted)">Secrets</span><code>console.aws.amazon.com/secretsmanager</code>
+          </div>
+          <div style="padding:7px 12px;background:var(--surface2);border-radius:8px;display:flex;justify-content:space-between">
+            <span style="color:var(--muted)">Route 53</span><code>console.aws.amazon.com/route53</code>
+          </div>
+          <div style="padding:7px 12px;background:var(--surface2);border-radius:8px;display:flex;justify-content:space-between">
+            <span style="color:var(--muted)">EventBridge</span><code>console.aws.amazon.com/events</code>
+          </div>
+          <div style="padding:7px 12px;background:var(--surface2);border-radius:8px;display:flex;justify-content:space-between">
+            <span style="color:var(--muted)">IAM</span><code>console.aws.amazon.com/iam</code>
+          </div>
+          <div style="padding:7px 12px;background:var(--surface2);border-radius:8px;display:flex;justify-content:space-between">
+            <span style="color:var(--muted)">Billing</span><code>console.aws.amazon.com/billing</code>
+          </div>
+        </div>
+      </div>
+      <div class="card">
+        <h3 style="color:var(--text);margin-bottom:12px">Useful AWS CLI Commands</h3>
+        <pre style="font-size:11px"><span class="c"># Check your identity</span>
+<span class="k">aws</span> sts get-caller-identity
+
+<span class="c"># List ECR images</span>
+<span class="k">aws</span> ecr list-images \
+  --repository-name chenesa-backend
+
+<span class="c"># List App Runner services</span>
+<span class="k">aws</span> apprunner list-services
+
+<span class="c"># Trigger manual App Runner deploy</span>
+<span class="k">aws</span> apprunner start-deployment \
+  --service-arn arn:aws:apprunner:...
+
+<span class="c"># View a secret value</span>
+<span class="k">aws</span> secretsmanager get-secret-value \
+  --secret-id chenesa/anthropic-api-key
+
+<span class="c"># App Runner logs (real-time)</span>
+<span class="k">aws</span> logs tail \
+  /aws/apprunner/chenesa-backend/... \
+  --follow
+
+<span class="c"># Check Amplify build status</span>
+<span class="k">aws</span> amplify list-jobs \
+  --app-id YOUR_APP_ID \
+  --branch-name main</pre>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     SECTION 10 — SECURITY CHECKLIST
+══════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label l-red">Section 10</span>
+    <h2 style="margin-top:10px">Security Checklist</h2>
+    <p>Things to lock down before going live on AWS.</p>
+
+    <div class="grid-2" style="margin-top:24px;gap:16px">
+      <div class="card stripe-red">
+        <h3 style="color:var(--text);margin-bottom:12px">🔐 Must Do</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+          <div style="display:flex;gap:10px"><span style="color:var(--red)">□</span><span style="color:var(--muted)">Enable MFA on AWS root account</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--red)">□</span><span style="color:var(--muted)">Never commit AWS credentials to GitHub</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--red)">□</span><span style="color:var(--red)">Never use root account for deployments</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--red)">□</span><span style="color:var(--muted)">Restrict IAM user to only needed services</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--red)">□</span><span style="color:var(--muted)">Add AWS Billing Alert at $50 threshold</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--red)">□</span><span style="color:var(--muted)">All secrets in Secrets Manager — no hardcoded values</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--red)">□</span><span style="color:var(--muted)">Update Google OAuth redirect URIs to new App Runner URL</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--red)">□</span><span style="color:var(--muted)">Remove old Railway URL from Google OAuth</span></div>
+        </div>
+      </div>
+      <div class="card stripe-green">
+        <h3 style="color:var(--text);margin-bottom:12px">✅ Nice to Have</h3>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:13px">
+          <div style="display:flex;gap:10px"><span style="color:var(--green2)">□</span><span style="color:var(--muted)">Enable AWS GuardDuty (threat detection, ~$5/mo)</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--green2)">□</span><span style="color:var(--muted)">Enable AWS CloudTrail (audit all API calls)</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--green2)">□</span><span style="color:var(--muted)">Add WAF in front of App Runner (rate limiting)</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--green2)">□</span><span style="color:var(--muted)">Use VPC for App Runner + private subnets</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--green2)">□</span><span style="color:var(--muted)">Enable RDS encryption at rest (if using RDS)</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--green2)">□</span><span style="color:var(--muted)">Rotate API keys every 90 days</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--green2)">□</span><span style="color:var(--muted)">Set App Runner auto-scaling max to prevent cost spikes</span></div>
+          <div style="display:flex;gap:10px"><span style="color:var(--green2)">□</span><span style="color:var(--muted)">Add AWS Cost Anomaly Detection alert</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════════
+     FOOTER
+══════════════════════════════════════════════════════ -->
+<div class="page-footer">
+  <div style="margin-bottom:8px"><span style="font-size:22px">☁</span><span style="font-weight:700;font-size:16px;color:#f1f5f9;margin-left:8px">Chenesa on AWS</span></div>
+  <div style="color:var(--dim);font-size:12px">A <span style="color:var(--muted);font-weight:500">Camluk Technologies</span> AI Solutions product</div>
+  <div style="color:#334155;font-size:11px;margin-top:6px">© 2026 Chenesa · AWS Deployment Reference · Level 1: Amplify + App Runner + Supabase</div>
+  <div style="margin-top:16px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:11px;color:#334155">
+    <span>AWS Amplify → Vercel replacement</span>
+    <span>·</span>
+    <span>AWS App Runner → Railway replacement</span>
+    <span>·</span>
+    <span>AWS ECR → Docker registry</span>
+    <span>·</span>
+    <span>Supabase unchanged</span>
+  </div>
+</div>
+
+</body>
+</html>
