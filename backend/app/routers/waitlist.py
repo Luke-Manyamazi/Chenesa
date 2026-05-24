@@ -11,6 +11,7 @@ Environment variables (set in Railway):
 If either var is missing the signup still succeeds; the notification is silently skipped.
 """
 
+import asyncio
 import os
 import smtplib
 from email.mime.text import MIMEText
@@ -61,7 +62,7 @@ def _send_notification(signup_email: str) -> None:
         msg.attach(MIMEText(text, "plain"))
         msg.attach(MIMEText(html,  "html"))
 
-        with smtplib.SMTP_SSL("smtp.gmail.com", 465) as smtp:
+        with smtplib.SMTP_SSL("smtp.gmail.com", 465, timeout=5) as smtp:
             smtp.login(notify_to, notify_pwd)
             smtp.send_message(msg)
 
@@ -99,10 +100,8 @@ async def join_waitlist(
         logger.error(f"Waitlist DB upsert failed: {exc}")
         raise HTTPException(status_code=500, detail="Could not save email — please try again")
 
-    # Non-blocking — notification failure never breaks the response
-    try:
-        _send_notification(email)
-    except Exception:
-        pass
+    # Fire notification in a background thread — never blocks the HTTP response
+    loop = asyncio.get_event_loop()
+    loop.run_in_executor(None, _send_notification, email)
 
     return {"status": "ok", "email": email}
