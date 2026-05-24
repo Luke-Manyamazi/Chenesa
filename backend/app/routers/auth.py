@@ -1,6 +1,7 @@
 import json
+import logging
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, HTMLResponse
 from googleapiclient.discovery import build
 from ..services.gmail_oauth import get_auth_url, exchange_code
 from ..services.encryption import encrypt
@@ -9,6 +10,9 @@ from ..dependencies import get_current_user
 from ..config import get_settings
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
+
+FRONTEND = "https://chenesa.vercel.app"
 
 
 @router.get("/gmail/url")
@@ -20,37 +24,49 @@ async def gmail_auth_url(user_id: str = Depends(get_current_user)):
 @router.get("/gmail/callback")
 async def gmail_callback(code: str = Query(...), state: str = Query(...)):
     """state = user_id. Called by Google after OAuth consent."""
+    frontend = get_settings().frontend_url or FRONTEND
     user_id = state
-    token_data = exchange_code(code)
 
-    # Get Gmail email address
-    import google.oauth2.credentials
-    creds = google.oauth2.credentials.Credentials(
-        token=token_data["token"],
-        refresh_token=token_data.get("refresh_token"),
-        token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
-        client_id=token_data.get("client_id"),
-        client_secret=token_data.get("client_secret"),
-    )
-    service = build("gmail", "v1", credentials=creds)
-    profile = service.users().getProfile(userId="me").execute()
-    email_address = profile["emailAddress"]
+    try:
+        token_data = exchange_code(code)
+    except Exception as e:
+        logger.error(f"Gmail token exchange failed: {e}")
+        return RedirectResponse(url=f"{frontend}/accounts?error=token_exchange_failed", status_code=302)
 
-    encrypted = encrypt(json.dumps(token_data))
-    supabase = get_supabase()
+    try:
+        import google.oauth2.credentials
+        creds = google.oauth2.credentials.Credentials(
+            token=token_data["token"],
+            refresh_token=token_data.get("refresh_token"),
+            token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
+            client_id=token_data.get("client_id"),
+            client_secret=token_data.get("client_secret"),
+        )
+        service = build("gmail", "v1", credentials=creds)
+        profile = service.users().getProfile(userId="me").execute()
+        email_address = profile["emailAddress"]
+    except Exception as e:
+        logger.error(f"Gmail profile fetch failed: {e}")
+        return RedirectResponse(url=f"{frontend}/accounts?error=gmail_api_failed", status_code=302)
 
-    # Upsert account (re-connecting same Gmail replaces it)
-    existing = supabase.table("email_accounts").select("id").eq("user_id", user_id).eq("email", email_address).execute()
-    if existing.data:
-        supabase.table("email_accounts").update({"encrypted_token": encrypted}).eq("id", existing.data[0]["id"]).execute()
-    else:
-        supabase.table("email_accounts").insert({
-            "user_id": user_id,
-            "type": "gmail",
-            "email": email_address,
-            "encrypted_token": encrypted,
-            "enabled": True,
-        }).execute()
+    try:
+        encrypted = encrypt(json.dumps(token_data))
+        supabase = get_supabase()
 
-    frontend = get_settings().frontend_url or "https://chenesa.vercel.app"
+        # Upsert account (re-connecting same Gmail replaces it)
+        existing = supabase.table("email_accounts").select("id").eq("user_id", user_id).eq("email", email_address).execute()
+        if existing.data:
+            supabase.table("email_accounts").update({"encrypted_token": encrypted}).eq("id", existing.data[0]["id"]).execute()
+        else:
+            supabase.table("email_accounts").insert({
+                "user_id": user_id,
+                "type": "gmail",
+                "email": email_address,
+                "encrypted_token": encrypted,
+                "enabled": True,
+            }).execute()
+    except Exception as e:
+        logger.error(f"Gmail account save failed: {e}")
+        return RedirectResponse(url=f"{frontend}/accounts?error=save_failed", status_code=302)
+
     return RedirectResponse(url=f"{frontend}/accounts?connected={email_address}", status_code=302)

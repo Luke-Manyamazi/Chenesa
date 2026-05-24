@@ -253,6 +253,7 @@ function Skeleton() {
 export default function AccountsPage() {
   const searchParams   = useSearchParams()
   const connectedEmail = searchParams.get('connected')
+  const oauthError     = searchParams.get('error')
 
   const [accounts,     setAccounts]     = useState<Account[]>([])
   const [loading,      setLoading]      = useState(true)
@@ -310,6 +311,16 @@ export default function AccountsPage() {
       {connectedEmail && (
         <div className="rounded-xl bg-green-900/20 border border-green-700/40 px-4 py-3 text-sm text-green-400 flex items-center gap-2">
           <CheckCircle size={16} /> <strong>{connectedEmail}</strong> connected successfully — ready to clean!
+        </div>
+      )}
+
+      {oauthError && (
+        <div className="rounded-xl bg-red-900/20 border border-red-700/40 px-4 py-3 text-sm text-red-400 flex items-center gap-2">
+          <XCircle size={16} />
+          {oauthError === 'token_exchange_failed' && 'Gmail authorisation failed — the link may have expired. Please try again.'}
+          {oauthError === 'gmail_api_failed'      && 'Could not fetch your Gmail profile. Check that the Gmail API is enabled in Google Cloud Console.'}
+          {oauthError === 'save_failed'           && 'Account connected but failed to save — please try again.'}
+          {!['token_exchange_failed','gmail_api_failed','save_failed'].includes(oauthError) && `OAuth error: ${oauthError}`}
         </div>
       )}
 
