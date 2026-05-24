@@ -1,0 +1,1177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chenesa — System Architecture</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:        #0f172a;
+    --surface:   #1e293b;
+    --surface2:  #263548;
+    --border:    #334155;
+    --border2:   #475569;
+    --text:      #f1f5f9;
+    --muted:     #94a3b8;
+    --dim:       #64748b;
+    --primary:   #6366f1;
+    --primary2:  #818cf8;
+    --primary3:  #4f46e5;
+    --green:     #22c55e;
+    --green2:    #4ade80;
+    --blue:      #3b82f6;
+    --blue2:     #60a5fa;
+    --amber:     #f59e0b;
+    --red:       #ef4444;
+    --violet:    #8b5cf6;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.6;
+    font-size: 15px;
+  }
+
+  /* ─── Layout ─── */
+  .container { max-width: 1100px; margin: 0 auto; padding: 0 24px; }
+  .section { padding: 60px 0; }
+  .section + .section { border-top: 1px solid var(--border); }
+
+  /* ─── Typography ─── */
+  h1 { font-size: 2.8rem; font-weight: 900; letter-spacing: -0.03em; line-height: 1.1; }
+  h2 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.02em; margin-bottom: 8px; }
+  h3 { font-size: 1.1rem; font-weight: 600; margin-bottom: 6px; }
+  p  { color: var(--muted); }
+  code { font-family: 'JetBrains Mono', monospace; font-size: 0.82em;
+         background: var(--surface2); padding: 2px 6px; border-radius: 5px;
+         color: var(--primary2); border: 1px solid var(--border); }
+
+  /* ─── Utility ─── */
+  .label {
+    display: inline-block;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.12em;
+    padding: 3px 10px; border-radius: 20px;
+  }
+  .label-indigo { background: rgba(99,102,241,.15); color: var(--primary2); border: 1px solid rgba(99,102,241,.3); }
+  .label-green  { background: rgba(34,197,94,.12);  color: var(--green2);   border: 1px solid rgba(34,197,94,.3); }
+  .label-blue   { background: rgba(59,130,246,.12); color: var(--blue2);    border: 1px solid rgba(59,130,246,.3); }
+  .label-amber  { background: rgba(245,158,11,.12); color: #fbbf24;         border: 1px solid rgba(245,158,11,.3); }
+  .label-violet { background: rgba(139,92,246,.12); color: #a78bfa;         border: 1px solid rgba(139,92,246,.3); }
+  .label-red    { background: rgba(239,68,68,.12);  color: #f87171;         border: 1px solid rgba(239,68,68,.3); }
+
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+  .grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; }
+  .grid-4 { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; }
+
+  /* ─── Cards ─── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+  }
+  .card-sm { padding: 16px; border-radius: 12px; }
+
+  /* ─── Hero ─── */
+  .hero {
+    padding: 72px 0 60px;
+    background: radial-gradient(ellipse 900px 500px at 50% -100px, rgba(99,102,241,.18) 0%, transparent 70%);
+    border-bottom: 1px solid var(--border);
+    text-align: center;
+  }
+  .hero-eyebrow {
+    font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.15em;
+    color: var(--primary2); margin-bottom: 20px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .hero-eyebrow::before, .hero-eyebrow::after {
+    content: ''; flex: 1; max-width: 60px; height: 1px; background: var(--border);
+  }
+  .hero h1 span.grad {
+    background: linear-gradient(135deg, #818cf8 0%, #a78bfa 50%, #6366f1 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text;
+  }
+  .hero-sub {
+    font-size: 1.05rem; color: var(--muted); margin: 20px auto 32px;
+    max-width: 580px; line-height: 1.7;
+  }
+  .meta-row {
+    display: flex; align-items: center; justify-content: center;
+    gap: 24px; flex-wrap: wrap; margin-top: 8px;
+  }
+  .meta-item {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: var(--dim);
+  }
+  .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--green); display: inline-block; }
+  .dot.amber { background: var(--amber); }
+  .dot.blue  { background: var(--blue); }
+
+  /* ─── Stack overview ─── */
+  .stack-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-top: 36px;
+  }
+  .stack-card {
+    background: var(--surface);
+    border-radius: 16px;
+    padding: 22px 18px;
+    border: 1px solid var(--border);
+    transition: border-color 0.2s, transform 0.2s;
+    position: relative;
+    overflow: hidden;
+  }
+  .stack-card::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  }
+  .stack-card.vercel::before { background: linear-gradient(90deg, #fff, #aaa); }
+  .stack-card.railway::before { background: linear-gradient(90deg, #7928ca, #c026d3); }
+  .stack-card.supabase::before { background: linear-gradient(90deg, #3ecf8e, #1db990); }
+  .stack-card.anthropic::before { background: linear-gradient(90deg, #c96442, #d97706); }
+  .stack-card:hover { border-color: var(--border2); transform: translateY(-2px); }
+  .stack-icon {
+    width: 40px; height: 40px; border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px; margin-bottom: 14px;
+    border: 1px solid var(--border);
+    background: var(--surface2);
+  }
+  .stack-card h3 { color: var(--text); font-size: 15px; }
+  .stack-card p { font-size: 12px; color: var(--muted); margin-top: 4px; line-height: 1.5; }
+  .stack-card .tech-list {
+    margin-top: 14px; display: flex; flex-direction: column; gap: 4px;
+  }
+  .tech-item {
+    font-size: 11px; color: var(--dim); display: flex; align-items: center; gap: 6px;
+  }
+  .tech-item::before { content: '▸'; color: var(--border2); font-size: 9px; }
+
+  /* ─── Architecture diagram ─── */
+  .arch-wrap {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 40px 32px;
+    margin-top: 36px;
+    overflow-x: auto;
+  }
+  .arch-svg { width: 100%; min-width: 700px; }
+
+  /* ─── Flow diagrams ─── */
+  .flow-steps {
+    display: flex; align-items: stretch;
+    gap: 0; margin-top: 28px;
+    flex-wrap: nowrap; overflow-x: auto;
+  }
+  .flow-step {
+    flex: 1; min-width: 140px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 16px 14px;
+    position: relative;
+    text-align: center;
+  }
+  .flow-step + .flow-step { margin-left: 28px; }
+  .flow-step + .flow-step::before {
+    content: '→';
+    position: absolute; left: -20px; top: 50%; transform: translateY(-50%);
+    color: var(--border2); font-size: 16px; font-weight: 700;
+  }
+  .flow-step .step-num {
+    width: 22px; height: 22px; border-radius: 50%;
+    background: var(--primary); color: #fff;
+    font-size: 10px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 10px;
+  }
+  .flow-step h4 { font-size: 12px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+  .flow-step p  { font-size: 11px; color: var(--dim); }
+  .flow-step .badge {
+    margin-top: 8px; font-size: 9px; padding: 2px 7px;
+    border-radius: 10px; display: inline-block; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 0.08em;
+  }
+
+  /* ─── DB Schema ─── */
+  .schema-table {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px; overflow: hidden;
+    margin-top: 20px;
+  }
+  .schema-header {
+    padding: 12px 18px;
+    background: rgba(99,102,241,.12);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px; font-weight: 700; color: var(--primary2);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .schema-body { padding: 8px 0; }
+  .schema-row {
+    display: grid; grid-template-columns: 160px 120px 1fr;
+    padding: 7px 18px; gap: 12px;
+    font-size: 12px; font-family: 'JetBrains Mono', monospace;
+    border-bottom: 1px solid rgba(51,65,85,.5);
+  }
+  .schema-row:last-child { border-bottom: none; }
+  .schema-row .col-name { color: var(--text); font-weight: 500; }
+  .schema-row .col-type { color: #a78bfa; }
+  .schema-row .col-note { color: var(--dim); font-family: 'Inter', sans-serif; font-size: 11px; }
+  .pk  { color: var(--amber) !important; }
+  .fk  { color: var(--blue2) !important; }
+
+  /* ─── Cost / limits table ─── */
+  .data-table { width: 100%; border-collapse: collapse; margin-top: 20px; font-size: 13px; }
+  .data-table th {
+    text-align: left; padding: 10px 16px;
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.1em;
+    color: var(--dim); background: var(--surface2);
+    border-bottom: 1px solid var(--border);
+  }
+  .data-table td {
+    padding: 10px 16px; border-bottom: 1px solid rgba(51,65,85,.4);
+    color: var(--muted);
+  }
+  .data-table td:first-child { color: var(--text); font-weight: 500; }
+  .data-table tr:last-child td { border-bottom: none; }
+
+  /* ─── Deployment flow ─── */
+  .deploy-row {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px 16px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; margin-top: 10px; font-size: 13px;
+  }
+  .deploy-row .arrow { color: var(--border2); font-weight: 700; }
+  .deploy-row .service { font-weight: 600; color: var(--text); }
+  .deploy-row .desc { color: var(--dim); font-size: 12px; margin-left: auto; }
+
+  /* ─── Colour stripe helpers ─── */
+  .stripe-indigo { border-left: 3px solid var(--primary); }
+  .stripe-green  { border-left: 3px solid var(--green); }
+  .stripe-blue   { border-left: 3px solid var(--blue); }
+  .stripe-amber  { border-left: 3px solid var(--amber); }
+  .stripe-violet { border-left: 3px solid var(--violet); }
+  .stripe-red    { border-left: 3px solid var(--red); }
+
+  /* ─── Footer ─── */
+  .page-footer {
+    text-align: center; padding: 40px 24px;
+    border-top: 1px solid var(--border);
+    font-size: 12px; color: var(--dim);
+  }
+
+  @media (max-width: 860px) {
+    h1 { font-size: 2rem; }
+    .stack-grid { grid-template-columns: 1fr 1fr; }
+    .grid-2, .grid-3, .grid-4 { grid-template-columns: 1fr; }
+    .flow-steps { flex-direction: column; }
+    .flow-step + .flow-step { margin-left: 0; margin-top: 28px; }
+    .flow-step + .flow-step::before { content: '↓'; left: 50%; top: -22px; transform: translateX(-50%); }
+  }
+</style>
+</head>
+<body>
+
+<!-- ════════════════════════════════════════════════════════════
+     HERO
+════════════════════════════════════════════════════════════ -->
+<div class="hero">
+  <div class="container">
+    <div class="hero-eyebrow">Camluk Technologies · AI Solutions Product</div>
+    <h1>Chenesa <span class="grad">Architecture</span></h1>
+    <p class="hero-sub">
+      A full-stack AI email cleaner built on four cloud services.
+      This document covers every layer — from the browser to the mailbox —
+      with data-flow diagrams, database schema, and deployment topology.
+    </p>
+    <div class="meta-row">
+      <div class="meta-item"><span class="dot"></span> Vercel (Frontend)</div>
+      <div class="meta-item"><span class="dot blue"></span> Railway (Backend)</div>
+      <div class="meta-item"><span class="dot amber"></span> Supabase (Database + Auth)</div>
+      <div class="meta-item"><span class="dot" style="background:#d97706"></span> Anthropic Claude (AI)</div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 1 — STACK OVERVIEW
+════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label label-indigo">Section 01</span>
+    <h2 style="margin-top:10px">The Four-Service Stack</h2>
+    <p>Every user request touches all four platforms in the critical path. Each service owns a distinct responsibility.</p>
+
+    <div class="stack-grid">
+
+      <div class="stack-card vercel">
+        <div class="stack-icon">▲</div>
+        <h3>Vercel</h3>
+        <p>Next.js 14 App Router — serves the marketing site, auth flows, and the full dashboard UI.</p>
+        <div class="tech-list">
+          <div class="tech-item">Next.js 14 (App Router)</div>
+          <div class="tech-item">React Server Components</div>
+          <div class="tech-item">TailwindCSS v3</div>
+          <div class="tech-item">Supabase SSR client</div>
+          <div class="tech-item">Lucide icons</div>
+          <div class="tech-item">Auto-deploy from GitHub</div>
+        </div>
+      </div>
+
+      <div class="stack-card railway" style="--accent:#c026d3">
+        <div class="stack-icon">🚂</div>
+        <h3>Railway</h3>
+        <p>FastAPI Python backend — handles all email operations, OAuth callbacks, and Claude classification.</p>
+        <div class="tech-list">
+          <div class="tech-item">FastAPI + Uvicorn</div>
+          <div class="tech-item">google-auth-oauthlib (Gmail)</div>
+          <div class="tech-item">imaplib (IMAP / Yahoo)</div>
+          <div class="tech-item">Anthropic Python SDK</div>
+          <div class="tech-item">tenacity (retry logic)</div>
+          <div class="tech-item">loguru (structured logs)</div>
+        </div>
+      </div>
+
+      <div class="stack-card supabase">
+        <div class="stack-icon">⚡</div>
+        <h3>Supabase</h3>
+        <p>Managed Postgres + Auth. Stores users, connected email accounts, cleaning runs, and per-user rules.</p>
+        <div class="tech-list">
+          <div class="tech-item">PostgreSQL 15</div>
+          <div class="tech-item">Supabase Auth (JWT)</div>
+          <div class="tech-item">Row Level Security (RLS)</div>
+          <div class="tech-item">Edge Functions (ready)</div>
+          <div class="tech-item">Realtime (ready)</div>
+          <div class="tech-item">Supabase JS + Python client</div>
+        </div>
+      </div>
+
+      <div class="stack-card anthropic">
+        <div class="stack-icon">🤖</div>
+        <h3>Anthropic Claude</h3>
+        <p>Claude Haiku 4.5 classifies up to 20 emails per API call with prompt caching for cost efficiency.</p>
+        <div class="tech-list">
+          <div class="tech-item">claude-haiku-4-5-20251001</div>
+          <div class="tech-item">Prompt caching (ephemeral)</div>
+          <div class="tech-item">Batch: 20 emails / call</div>
+          <div class="tech-item">MAX_TOKENS = 4096</div>
+          <div class="tech-item">5 categories + UNKNOWN</div>
+          <div class="tech-item">JSON structured output</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 2 — ARCHITECTURE DIAGRAM
+════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label label-green">Section 02</span>
+    <h2 style="margin-top:10px">System Architecture</h2>
+    <p>How all services connect at rest and during a cleaning run.</p>
+
+    <div class="arch-wrap">
+      <svg class="arch-svg" viewBox="0 0 1000 560" xmlns="http://www.w3.org/2000/svg" font-family="Inter, system-ui, sans-serif">
+
+        <!-- Background grid lines (subtle) -->
+        <defs>
+          <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+            <path d="M 40 0 L 0 0 0 40" fill="none" stroke="#334155" stroke-width="0.4" opacity="0.4"/>
+          </pattern>
+          <marker id="arrow" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#6366f1"/>
+          </marker>
+          <marker id="arrow-green" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#22c55e"/>
+          </marker>
+          <marker id="arrow-blue" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#3b82f6"/>
+          </marker>
+          <marker id="arrow-amber" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#f59e0b"/>
+          </marker>
+          <marker id="arrow-dim" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+            <polygon points="0 0, 8 3, 0 6" fill="#475569"/>
+          </marker>
+        </defs>
+        <rect width="1000" height="560" fill="url(#grid)" opacity="0.5"/>
+
+        <!-- ── USER / BROWSER ── -->
+        <rect x="380" y="20" width="240" height="70" rx="14" fill="#1e293b" stroke="#6366f1" stroke-width="1.5"/>
+        <text x="500" y="48" text-anchor="middle" fill="#f1f5f9" font-size="14" font-weight="700">👤 User / Browser</text>
+        <text x="500" y="67" text-anchor="middle" fill="#94a3b8" font-size="11">chenesa.vercel.app</text>
+
+        <!-- ── VERCEL ── -->
+        <rect x="100" y="150" width="240" height="90" rx="14" fill="#1e293b" stroke="#6366f1" stroke-width="2"/>
+        <text x="220" y="180" text-anchor="middle" fill="#818cf8" font-size="11" font-weight="700" letter-spacing="1">▲ VERCEL</text>
+        <text x="220" y="200" text-anchor="middle" fill="#f1f5f9" font-size="13" font-weight="600">Next.js 14 Frontend</text>
+        <text x="220" y="218" text-anchor="middle" fill="#94a3b8" font-size="11">Marketing · Auth · Dashboard</text>
+        <rect x="130" y="226" width="60" height="6" rx="3" fill="#6366f1" opacity="0.8"/>
+        <rect x="200" y="226" width="40" height="6" rx="3" fill="#818cf8" opacity="0.5"/>
+        <rect x="250" y="226" width="72" height="6" rx="3" fill="#4f46e5" opacity="0.6"/>
+
+        <!-- ── SUPABASE AUTH ── -->
+        <rect x="660" y="150" width="240" height="90" rx="14" fill="#1e293b" stroke="#3ecf8e" stroke-width="2"/>
+        <text x="780" y="180" text-anchor="middle" fill="#4ade80" font-size="11" font-weight="700" letter-spacing="1">⚡ SUPABASE</text>
+        <text x="780" y="200" text-anchor="middle" fill="#f1f5f9" font-size="13" font-weight="600">Auth + Database</text>
+        <text x="780" y="218" text-anchor="middle" fill="#94a3b8" font-size="11">PostgreSQL · JWT · RLS</text>
+        <rect x="690" y="226" width="80" height="6" rx="3" fill="#3ecf8e" opacity="0.8"/>
+        <rect x="780" y="226" width="50" height="6" rx="3" fill="#22c55e" opacity="0.5"/>
+        <rect x="840" y="226" width="42" height="6" rx="3" fill="#16a34a" opacity="0.6"/>
+
+        <!-- ── RAILWAY ── -->
+        <rect x="340" y="320" width="320" height="100" rx="14" fill="#1e293b" stroke="#c026d3" stroke-width="2"/>
+        <text x="500" y="350" text-anchor="middle" fill="#e879f9" font-size="11" font-weight="700" letter-spacing="1">🚂 RAILWAY</text>
+        <text x="500" y="372" text-anchor="middle" fill="#f1f5f9" font-size="13" font-weight="600">FastAPI Python Backend</text>
+        <text x="500" y="392" text-anchor="middle" fill="#94a3b8" font-size="11">/clean  /auth/gmail  /settings  /history</text>
+        <rect x="360" y="403" width="55" height="5" rx="2.5" fill="#c026d3" opacity="0.8"/>
+        <rect x="425" y="403" width="80" height="5" rx="2.5" fill="#a21caf" opacity="0.5"/>
+        <rect x="515" y="403" width="45" height="5" rx="2.5" fill="#86198f" opacity="0.6"/>
+        <rect x="570" y="403" width="70" height="5" rx="2.5" fill="#701a75" opacity="0.5"/>
+
+        <!-- ── ANTHROPIC ── -->
+        <rect x="100" y="460" width="200" height="80" rx="14" fill="#1e293b" stroke="#d97706" stroke-width="1.5"/>
+        <text x="200" y="490" text-anchor="middle" fill="#fbbf24" font-size="11" font-weight="700" letter-spacing="1">🤖 ANTHROPIC</text>
+        <text x="200" y="510" text-anchor="middle" fill="#f1f5f9" font-size="12" font-weight="600">Claude Haiku 4.5</text>
+        <text x="200" y="527" text-anchor="middle" fill="#94a3b8" font-size="10">Batch classify · Prompt cache</text>
+
+        <!-- ── GMAIL API ── -->
+        <rect x="700" y="460" width="200" height="80" rx="14" fill="#1e293b" stroke="#ef4444" stroke-width="1.5"/>
+        <text x="800" y="490" text-anchor="middle" fill="#f87171" font-size="11" font-weight="700" letter-spacing="1">📧 GMAIL API</text>
+        <text x="800" y="510" text-anchor="middle" fill="#f1f5f9" font-size="12" font-weight="600">Google OAuth 2.0</text>
+        <text x="800" y="527" text-anchor="middle" fill="#94a3b8" font-size="10">Fetch + delete emails (IMAP)</text>
+
+        <!-- ── GITHUB ACTIONS ── -->
+        <rect x="450" y="460" width="200" height="80" rx="14" fill="#1e293b" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="5,3"/>
+        <text x="550" y="490" text-anchor="middle" fill="#818cf8" font-size="11" font-weight="700" letter-spacing="1">⚙ GITHUB ACTIONS</text>
+        <text x="550" y="510" text-anchor="middle" fill="#f1f5f9" font-size="12" font-weight="600">Scheduler</text>
+        <text x="550" y="527" text-anchor="middle" fill="#94a3b8" font-size="10">cron: every 6 h</text>
+
+        <!-- ─── ARROWS ─── -->
+        <!-- User → Vercel -->
+        <path d="M 420 90 L 280 150" stroke="#6366f1" stroke-width="1.8" fill="none" marker-end="url(#arrow)"/>
+        <text x="330" y="120" fill="#818cf8" font-size="10" transform="rotate(-30,330,120)">HTTPS / Next.js</text>
+
+        <!-- User ↔ Supabase Auth (direct from browser) -->
+        <path d="M 580 90 L 720 150" stroke="#3ecf8e" stroke-width="1.8" fill="none" marker-end="url(#arrow-green)"/>
+        <text x="650" y="115" fill="#4ade80" font-size="10" transform="rotate(30,650,115)">Auth JWT</text>
+
+        <!-- Vercel → Railway (API calls) -->
+        <path d="M 240 240 L 380 320" stroke="#6366f1" stroke-width="1.8" fill="none" stroke-dasharray="6,3" marker-end="url(#arrow)"/>
+        <text x="270" y="295" fill="#818cf8" font-size="10">API calls</text>
+
+        <!-- Railway ↔ Supabase DB -->
+        <path d="M 660 370 L 660 300 L 750 240" stroke="#3ecf8e" stroke-width="1.8" fill="none" marker-end="url(#arrow-green)"/>
+        <text x="690" y="300" fill="#4ade80" font-size="10">DB read/write</text>
+
+        <!-- Railway → Anthropic -->
+        <path d="M 380 400 L 280 460" stroke="#d97706" stroke-width="1.8" fill="none" marker-end="url(#arrow-amber)"/>
+        <text x="290" y="440" fill="#fbbf24" font-size="10">Classify batch</text>
+
+        <!-- Railway → Gmail -->
+        <path d="M 620 400 L 720 460" stroke="#ef4444" stroke-width="1.8" fill="none" marker-end="url(#arrow)" style="marker-end: url(#arrow)"/>
+        <text x="680" y="440" fill="#f87171" font-size="10">OAuth / IMAP</text>
+
+        <!-- GitHub Actions → Railway (trigger clean) -->
+        <path d="M 550 460 L 530 420" stroke="#6366f1" stroke-width="1.5" fill="none" stroke-dasharray="4,3" marker-end="url(#arrow)"/>
+        <text x="550" y="452" fill="#818cf8" font-size="9">POST /clean</text>
+
+        <!-- LEGEND -->
+        <rect x="10" y="500" width="14" height="3" rx="1.5" fill="#6366f1"/>
+        <text x="30" y="505" fill="#64748b" font-size="10">User / app flow</text>
+        <rect x="10" y="518" width="14" height="3" rx="1.5" fill="#6366f1" opacity="0.6"/>
+        <line x1="10" y1="528" x2="24" y2="528" stroke="#6366f1" stroke-width="1.5" stroke-dasharray="3,2" opacity="0.7"/>
+        <text x="30" y="531" fill="#64748b" font-size="10">Scheduled / internal</text>
+
+      </svg>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 3 — EMAIL CLEANING PIPELINE
+════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label label-amber">Section 03</span>
+    <h2 style="margin-top:10px">Email Cleaning Pipeline</h2>
+    <p>Step-by-step flow from trigger to deleted emails. One cleaning run processes up to 2,000 emails.</p>
+
+    <div class="flow-steps">
+      <div class="flow-step stripe-indigo">
+        <div class="step-num">1</div>
+        <h4>Trigger</h4>
+        <p>User clicks "Run now" or GitHub Actions fires the cron</p>
+        <span class="badge" style="background:rgba(99,102,241,.15);color:#818cf8">Vercel → Railway</span>
+      </div>
+      <div class="flow-step stripe-violet">
+        <div class="step-num">2</div>
+        <h4>Fetch Emails</h4>
+        <p>Railway connects to Gmail via OAuth or IMAP with app password</p>
+        <span class="badge" style="background:rgba(139,92,246,.15);color:#a78bfa">IMAP / Gmail API</span>
+      </div>
+      <div class="flow-step stripe-blue">
+        <div class="step-num">3</div>
+        <h4>Keep Rules</h4>
+        <p>Emails matching user keywords are instantly protected — no AI needed</p>
+        <span class="badge" style="background:rgba(59,130,246,.15);color:#60a5fa">Supabase DB</span>
+      </div>
+      <div class="flow-step stripe-amber">
+        <div class="step-num">4</div>
+        <h4>OLD_READ Filter</h4>
+        <p>Read emails older than threshold (default 180d) auto-deleted, saving API tokens</p>
+        <span class="badge" style="background:rgba(245,158,11,.15);color:#fbbf24">No AI cost</span>
+      </div>
+      <div class="flow-step stripe-indigo" style="background:rgba(99,102,241,.08)">
+        <div class="step-num">5</div>
+        <h4>Claude AI</h4>
+        <p>Remaining emails batched 20/call with prompt caching for 85% cost reduction</p>
+        <span class="badge" style="background:rgba(99,102,241,.2);color:#818cf8">Haiku 4.5</span>
+      </div>
+      <div class="flow-step stripe-red">
+        <div class="step-num">6</div>
+        <h4>Delete</h4>
+        <p>SPAM / MARKETING / SOCIAL / OLD_READ emails permanently removed from mailbox</p>
+        <span class="badge" style="background:rgba(239,68,68,.15);color:#f87171">IMAP EXPUNGE</span>
+      </div>
+      <div class="flow-step stripe-green">
+        <div class="step-num">7</div>
+        <h4>Save Run</h4>
+        <p>Results (deleted, kept, per-email reasoning) stored in Supabase for history</p>
+        <span class="badge" style="background:rgba(34,197,94,.15);color:#4ade80">Supabase DB</span>
+      </div>
+    </div>
+
+    <!-- Category breakdown -->
+    <div style="margin-top:36px">
+      <h3 style="color:var(--text);margin-bottom:16px">Email Categories Claude Assigns</h3>
+      <div class="grid-3" style="gap:12px">
+        <div class="card card-sm stripe-red">
+          <div style="font-size:11px;font-weight:700;color:#f87171;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">🚫 SPAM</div>
+          <p style="font-size:12px">Phishing, fake prizes, unsolicited commercial email. Highest priority delete.</p>
+        </div>
+        <div class="card card-sm stripe-amber">
+          <div style="font-size:11px;font-weight:700;color:#fbbf24;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">📢 MARKETING</div>
+          <p style="font-size:12px">Sales newsletters, promotional offers, flash sales, brand announcements.</p>
+        </div>
+        <div class="card card-sm stripe-blue">
+          <div style="font-size:11px;font-weight:700;color:#60a5fa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">🌐 SOCIAL</div>
+          <p style="font-size:12px">Facebook, LinkedIn, Twitter notifications. Low-signal social alerts.</p>
+        </div>
+        <div class="card card-sm stripe-violet">
+          <div style="font-size:11px;font-weight:700;color:#a78bfa;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">📅 OLD_READ</div>
+          <p style="font-size:12px">Read and older than threshold. Pre-filtered — never sent to Claude AI.</p>
+        </div>
+        <div class="card card-sm stripe-green">
+          <div style="font-size:11px;font-weight:700;color:#4ade80;text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">✅ KEEP</div>
+          <p style="font-size:12px">Invoices, receipts, personal mail, bank statements. Always preserved.</p>
+        </div>
+        <div class="card card-sm" style="border-left:3px solid var(--dim)">
+          <div style="font-size:11px;font-weight:700;color:var(--dim);text-transform:uppercase;letter-spacing:.1em;margin-bottom:6px">❓ UNKNOWN</div>
+          <p style="font-size:12px">Fallback when API fails or Claude is uncertain. Never deleted — safe default.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 4 — GMAIL OAUTH FLOW
+════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label label-red">Section 04</span>
+    <h2 style="margin-top:10px">Gmail OAuth 2.0 + PKCE Flow</h2>
+    <p>How a user's Gmail account gets connected securely. Railway handles the OAuth dance server-side.</p>
+
+    <div style="margin-top:28px;display:flex;flex-direction:column;gap:0">
+
+      <div class="deploy-row stripe-indigo">
+        <span style="color:var(--primary2);font-weight:700;font-size:13px;min-width:24px">1</span>
+        <span class="arrow">→</span>
+        <span class="service">User clicks "Connect Gmail"</span>
+        <span class="desc">Vercel calls <code>GET /auth/gmail/url</code> on Railway</span>
+      </div>
+
+      <div style="width:2px;height:12px;background:var(--border);margin-left:20px"></div>
+
+      <div class="deploy-row stripe-violet">
+        <span style="color:#a78bfa;font-weight:700;font-size:13px;min-width:24px">2</span>
+        <span class="arrow">→</span>
+        <span class="service">Railway generates OAuth URL + PKCE</span>
+        <span class="desc"><code>google_auth_oauthlib</code> auto-creates <code>code_verifier</code> → stored in <code>_verifier_store[state]</code></span>
+      </div>
+
+      <div style="width:2px;height:12px;background:var(--border);margin-left:20px"></div>
+
+      <div class="deploy-row stripe-red">
+        <span style="color:#f87171;font-weight:700;font-size:13px;min-width:24px">3</span>
+        <span class="arrow">→</span>
+        <span class="service">Browser redirected to Google consent screen</span>
+        <span class="desc">User approves Gmail read + delete scopes</span>
+      </div>
+
+      <div style="width:2px;height:12px;background:var(--border);margin-left:20px"></div>
+
+      <div class="deploy-row stripe-amber">
+        <span style="color:#fbbf24;font-weight:700;font-size:13px;min-width:24px">4</span>
+        <span class="arrow">→</span>
+        <span class="service">Google calls Railway callback with <code>?code=…&state=…</code></span>
+        <span class="desc"><code>chenesa-production.up.railway.app/auth/gmail/callback</code></span>
+      </div>
+
+      <div style="width:2px;height:12px;background:var(--border);margin-left:20px"></div>
+
+      <div class="deploy-row stripe-green">
+        <span style="color:#4ade80;font-weight:700;font-size:13px;min-width:24px">5</span>
+        <span class="arrow">→</span>
+        <span class="service">Railway exchanges code → tokens</span>
+        <span class="desc">Pops <code>code_verifier</code> from store, calls <code>flow.fetch_token(code, code_verifier)</code></span>
+      </div>
+
+      <div style="width:2px;height:12px;background:var(--border);margin-left:20px"></div>
+
+      <div class="deploy-row stripe-blue">
+        <span style="color:#60a5fa;font-weight:700;font-size:13px;min-width:24px">6</span>
+        <span class="arrow">→</span>
+        <span class="service">Railway saves encrypted tokens to Supabase <code>email_accounts</code></span>
+        <span class="desc">access_token + refresh_token stored encrypted</span>
+      </div>
+
+      <div style="width:2px;height:12px;background:var(--border);margin-left:20px"></div>
+
+      <div class="deploy-row stripe-indigo">
+        <span style="color:#818cf8;font-weight:700;font-size:13px;min-width:24px">7</span>
+        <span class="arrow">→</span>
+        <span class="service">Railway redirects browser to Vercel</span>
+        <span class="desc"><code>302 → chenesa.vercel.app/accounts?connected=user@gmail.com</code></span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 5 — DATABASE SCHEMA
+════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label label-blue">Section 05</span>
+    <h2 style="margin-top:10px">Database Schema (Supabase / PostgreSQL)</h2>
+    <p>Six tables with Row Level Security. Users can only ever read their own rows.</p>
+
+    <div class="grid-2" style="margin-top:28px;gap:24px">
+
+      <!-- profiles -->
+      <div>
+        <div class="schema-table">
+          <div class="schema-header">👤 profiles</div>
+          <div class="schema-body">
+            <div class="schema-row"><span class="col-name pk">id</span><span class="col-type">uuid</span><span class="col-note">PK · FK → auth.users</span></div>
+            <div class="schema-row"><span class="col-name">subscription_plan</span><span class="col-type">text</span><span class="col-note">free | basic | pro</span></div>
+            <div class="schema-row"><span class="col-name">free_runs_used</span><span class="col-type">int4</span><span class="col-note">default 0</span></div>
+            <div class="schema-row"><span class="col-name">free_runs_limit</span><span class="col-type">int4</span><span class="col-note">default 3</span></div>
+            <div class="schema-row"><span class="col-name">old_read_days</span><span class="col-type">int4</span><span class="col-note">default 180 · cleaning aggressiveness</span></div>
+            <div class="schema-row"><span class="col-name">created_at</span><span class="col-type">timestamptz</span><span class="col-note">auto</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- email_accounts -->
+      <div>
+        <div class="schema-table">
+          <div class="schema-header">📧 email_accounts</div>
+          <div class="schema-body">
+            <div class="schema-row"><span class="col-name pk">id</span><span class="col-type">uuid</span><span class="col-note">PK</span></div>
+            <div class="schema-row"><span class="col-name fk">user_id</span><span class="col-type">uuid</span><span class="col-note">FK → profiles.id</span></div>
+            <div class="schema-row"><span class="col-name">email</span><span class="col-type">text</span><span class="col-note">connected address</span></div>
+            <div class="schema-row"><span class="col-name">type</span><span class="col-type">text</span><span class="col-note">gmail | imap | yahoo</span></div>
+            <div class="schema-row"><span class="col-name">credentials</span><span class="col-type">jsonb</span><span class="col-note">encrypted tokens / app password</span></div>
+            <div class="schema-row"><span class="col-name">enabled</span><span class="col-type">bool</span><span class="col-note">active in scheduler</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- cleaning_runs -->
+      <div>
+        <div class="schema-table">
+          <div class="schema-header">🗑 cleaning_runs</div>
+          <div class="schema-body">
+            <div class="schema-row"><span class="col-name pk">id</span><span class="col-type">uuid</span><span class="col-note">PK</span></div>
+            <div class="schema-row"><span class="col-name fk">user_id</span><span class="col-type">uuid</span><span class="col-note">FK → profiles.id</span></div>
+            <div class="schema-row"><span class="col-name fk">email_account_id</span><span class="col-type">uuid</span><span class="col-note">FK → email_accounts.id</span></div>
+            <div class="schema-row"><span class="col-name">status</span><span class="col-type">text</span><span class="col-note">running | completed | failed</span></div>
+            <div class="schema-row"><span class="col-name">emails_deleted</span><span class="col-type">int4</span><span class="col-note">count of removed emails</span></div>
+            <div class="schema-row"><span class="col-name">emails_kept</span><span class="col-type">int4</span><span class="col-note">count of preserved emails</span></div>
+            <div class="schema-row"><span class="col-name">started_at</span><span class="col-type">timestamptz</span><span class="col-note">auto</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- deleted_emails -->
+      <div>
+        <div class="schema-table">
+          <div class="schema-header">📋 deleted_emails</div>
+          <div class="schema-body">
+            <div class="schema-row"><span class="col-name pk">id</span><span class="col-type">uuid</span><span class="col-note">PK</span></div>
+            <div class="schema-row"><span class="col-name fk">run_id</span><span class="col-type">uuid</span><span class="col-note">FK → cleaning_runs.id</span></div>
+            <div class="schema-row"><span class="col-name">subject</span><span class="col-type">text</span><span class="col-note">email subject line</span></div>
+            <div class="schema-row"><span class="col-name">sender</span><span class="col-type">text</span><span class="col-note">From address</span></div>
+            <div class="schema-row"><span class="col-name">category</span><span class="col-type">text</span><span class="col-note">SPAM | MARKETING | SOCIAL | OLD_READ</span></div>
+            <div class="schema-row"><span class="col-name">reasoning</span><span class="col-type">text</span><span class="col-note">Claude's one-sentence explanation</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- keep_rules -->
+      <div>
+        <div class="schema-table">
+          <div class="schema-header">🛡 keep_rules</div>
+          <div class="schema-body">
+            <div class="schema-row"><span class="col-name pk">id</span><span class="col-type">uuid</span><span class="col-note">PK</span></div>
+            <div class="schema-row"><span class="col-name fk">user_id</span><span class="col-type">uuid</span><span class="col-note">FK → profiles.id</span></div>
+            <div class="schema-row"><span class="col-name">keyword</span><span class="col-type">text</span><span class="col-note">case-insensitive match string</span></div>
+            <div class="schema-row"><span class="col-name">match_field</span><span class="col-type">text</span><span class="col-note">all | subject | sender</span></div>
+            <div class="schema-row"><span class="col-name">created_at</span><span class="col-type">timestamptz</span><span class="col-note">auto</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- sessions / audit -->
+      <div>
+        <div class="schema-table">
+          <div class="schema-header">⚙ Row Level Security Rules</div>
+          <div class="schema-body">
+            <div class="schema-row" style="grid-template-columns:1fr 2fr">
+              <span class="col-name" style="color:var(--green2)">profiles</span>
+              <span class="col-note">SELECT / UPDATE where id = auth.uid()</span>
+            </div>
+            <div class="schema-row" style="grid-template-columns:1fr 2fr">
+              <span class="col-name" style="color:var(--green2)">email_accounts</span>
+              <span class="col-note">ALL where user_id = auth.uid()</span>
+            </div>
+            <div class="schema-row" style="grid-template-columns:1fr 2fr">
+              <span class="col-name" style="color:var(--green2)">cleaning_runs</span>
+              <span class="col-note">ALL where user_id = auth.uid()</span>
+            </div>
+            <div class="schema-row" style="grid-template-columns:1fr 2fr">
+              <span class="col-name" style="color:var(--green2)">deleted_emails</span>
+              <span class="col-note">SELECT via run_id → cleaning_runs join</span>
+            </div>
+            <div class="schema-row" style="grid-template-columns:1fr 2fr">
+              <span class="col-name" style="color:var(--green2)">keep_rules</span>
+              <span class="col-note">ALL where user_id = auth.uid()</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 6 — CLAUDE AI INTERNALS
+════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label label-amber">Section 06</span>
+    <h2 style="margin-top:10px">Claude AI — Classifier Internals</h2>
+    <p>How the email classification engine is built for speed and cost-efficiency.</p>
+
+    <div class="grid-2" style="margin-top:28px;gap:20px">
+
+      <div class="card stripe-amber">
+        <h3 style="color:var(--text)">⚡ Prompt Caching</h3>
+        <p style="margin-top:8px;font-size:13px">The 500-token system prompt is marked <code>cache_control: ephemeral</code>. On a 500-email run (25 API calls):</p>
+        <div style="margin-top:14px;background:var(--surface2);border-radius:10px;padding:14px">
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px">
+            <span style="color:var(--muted)">Call #1 — cache WRITE</span>
+            <span style="color:var(--amber)">1.25× cost</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:8px">
+            <span style="color:var(--muted)">Calls #2–25 — cache HIT</span>
+            <span style="color:var(--green2)">0.1× cost each</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:12px;border-top:1px solid var(--border);padding-top:8px">
+            <span style="color:var(--text);font-weight:600">Effective average</span>
+            <span style="color:var(--green2);font-weight:700">≈ 0.15× cost</span>
+          </div>
+        </div>
+        <p style="font-size:12px;margin-top:10px;color:var(--dim)">Cache key is stable because the system prompt is a module-level constant — no timestamps, no per-user data injected.</p>
+      </div>
+
+      <div class="card stripe-indigo">
+        <h3 style="color:var(--text)">📦 Batch Processing</h3>
+        <p style="margin-top:8px;font-size:13px">Up to 20 emails are sent in a single API call. Claude returns a JSON array — one result per email:</p>
+        <div style="margin-top:14px;background:#070b12;border-radius:10px;padding:14px;font-family:'JetBrains Mono',monospace;font-size:11px;color:#4ade80;overflow-x:auto">
+[<br>
+&nbsp;&nbsp;{<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"email_num": 1,<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"category": "MARKETING",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"confidence": "high",<br>
+&nbsp;&nbsp;&nbsp;&nbsp;"reasoning": "Flash sale newsletter"<br>
+&nbsp;&nbsp;},<br>
+&nbsp;&nbsp;{ "email_num": 2, "category": "KEEP", ... }<br>
+]
+        </div>
+        <p style="font-size:12px;margin-top:10px;color:var(--dim)"><code>MAX_TOKENS = 4096</code> — each result needs ~100 tokens; batch of 20 needs ~2,000 tokens minimum.</p>
+      </div>
+
+      <div class="card stripe-green">
+        <h3 style="color:var(--text)">🛡 Safety Fallbacks</h3>
+        <p style="margin-top:8px;font-size:13px">Multiple layers prevent accidental deletion:</p>
+        <div style="margin-top:12px;display:flex;flex-direction:column;gap:8px">
+          <div style="display:flex;gap:10px;font-size:12px"><span style="color:var(--green2)">✓</span><span style="color:var(--muted)">API failure → all emails marked <code>UNKNOWN</code> (never deleted)</span></div>
+          <div style="display:flex;gap:10px;font-size:12px"><span style="color:var(--green2)">✓</span><span style="color:var(--muted)">JSON parse error → fallback to <code>UNKNOWN</code></span></div>
+          <div style="display:flex;gap:10px;font-size:12px"><span style="color:var(--green2)">✓</span><span style="color:var(--muted)">Missing batch items → defensive per-email fallback</span></div>
+          <div style="display:flex;gap:10px;font-size:12px"><span style="color:var(--green2)">✓</span><span style="color:var(--muted)">Keep rules override ALL AI decisions</span></div>
+          <div style="display:flex;gap:10px;font-size:12px"><span style="color:var(--green2)">✓</span><span style="color:var(--muted)">Dry-run mode: simulate without deleting</span></div>
+          <div style="display:flex;gap:10px;font-size:12px"><span style="color:var(--green2)">✓</span><span style="color:var(--muted)">Retry on 429 / 5xx with exponential backoff (tenacity)</span></div>
+        </div>
+      </div>
+
+      <div class="card stripe-violet">
+        <h3 style="color:var(--text)">🔁 Rate Limiting</h3>
+        <p style="margin-top:8px;font-size:13px">A shared token-bucket <code>RateLimiter</code> controls API request cadence across concurrent cleaning runs:</p>
+        <div style="margin-top:14px;display:flex;flex-direction:column;gap:10px">
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;font-size:12px">
+            <div style="color:var(--text);font-weight:600;margin-bottom:4px">Anthropic bucket</div>
+            <div style="color:var(--muted)">Acquired before every <code>messages.create()</code> call</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:12px;font-size:12px">
+            <div style="color:var(--text);font-weight:600;margin-bottom:4px">IMAP bucket</div>
+            <div style="color:var(--muted)">Acquired before every mailbox operation</div>
+          </div>
+        </div>
+        <p style="font-size:12px;margin-top:10px;color:var(--dim)">Model: <code>claude-haiku-4-5-20251001</code> — fast, cheap, accurate for classification.</p>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 7 — DEPLOYMENT + CI/CD
+════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label label-violet">Section 07</span>
+    <h2 style="margin-top:10px">Deployment & CI/CD</h2>
+    <p>Every <code>git push origin main</code> automatically deploys both services.</p>
+
+    <div class="grid-2" style="margin-top:28px;gap:24px">
+
+      <div class="card">
+        <h3 style="color:var(--text);margin-bottom:16px">🔄 Deploy Pipeline</h3>
+        <div style="display:flex;flex-direction:column;gap:0">
+          <div class="deploy-row stripe-indigo" style="border-radius:10px 10px 0 0">
+            <span style="font-size:18px">💻</span>
+            <span class="service">Developer pushes to <code>main</code></span>
+            <span class="desc">GitHub</span>
+          </div>
+          <div style="width:2px;height:10px;background:var(--border);margin-left:20px"></div>
+          <div class="deploy-row stripe-indigo">
+            <span style="font-size:18px">▲</span>
+            <span class="service">Vercel auto-build triggered</span>
+            <span class="desc">Next.js build → Edge CDN</span>
+          </div>
+          <div style="width:2px;height:10px;background:var(--border);margin-left:20px"></div>
+          <div class="deploy-row stripe-violet">
+            <span style="font-size:18px">🚂</span>
+            <span class="service">Railway auto-deploy triggered</span>
+            <span class="desc">Dockerfile build → Python container</span>
+          </div>
+          <div style="width:2px;height:10px;background:var(--border);margin-left:20px"></div>
+          <div class="deploy-row stripe-green" style="border-radius:0 0 10px 10px">
+            <span style="font-size:18px">✅</span>
+            <span class="service">Both services live simultaneously</span>
+            <span class="desc">~2 min total</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 style="color:var(--text);margin-bottom:16px">⚙ GitHub Actions Scheduler</h3>
+        <div style="background:#070b12;border-radius:10px;padding:16px;font-family:'JetBrains Mono',monospace;font-size:12px;color:#818cf8;margin-bottom:16px;overflow-x:auto">
+<span style="color:#64748b"># .github/workflows/clean.yml</span><br>
+<span style="color:#4ade80">on:</span><br>
+&nbsp;&nbsp;<span style="color:#fbbf24">schedule:</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color:#f1f5f9">cron: <span style="color:#a78bfa">'0 */6 * * *'</span></span><br>
+<br>
+<span style="color:#4ade80">jobs:</span><br>
+&nbsp;&nbsp;<span style="color:#fbbf24">clean:</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#60a5fa">steps:</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;- <span style="color:#f1f5f9">POST /clean/all-accounts</span><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span style="color:#94a3b8">→ Railway backend</span>
+        </div>
+        <div style="display:flex;flex-direction:column;gap:8px;font-size:12px">
+          <div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-radius:8px">
+            <span style="color:var(--muted)">Frequency</span><span style="color:var(--text);font-weight:600">Every 6 hours</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-radius:8px">
+            <span style="color:var(--muted)">Target</span><span style="color:var(--text);font-weight:600">All enabled accounts</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-radius:8px">
+            <span style="color:var(--muted)">Auth</span><span style="color:var(--text);font-weight:600"><code>CRON_SECRET</code> header</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;padding:8px 12px;background:var(--surface2);border-radius:8px">
+            <span style="color:var(--muted)">Cost</span><span style="color:var(--green2);font-weight:600">Free (GitHub Actions minutes)</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- Env vars table -->
+    <div style="margin-top:32px">
+      <h3 style="color:var(--text);margin-bottom:16px">🔑 Environment Variables</h3>
+      <div class="grid-2" style="gap:20px">
+
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#818cf8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">▲ Vercel (frontend)</div>
+          <table class="data-table" style="background:var(--surface);border-radius:12px;overflow:hidden;border:1px solid var(--border)">
+            <tr><td><code>NEXT_PUBLIC_SUPABASE_URL</code></td><td style="color:var(--dim);font-size:12px">Supabase project URL</td></tr>
+            <tr><td><code>NEXT_PUBLIC_SUPABASE_ANON_KEY</code></td><td style="color:var(--dim);font-size:12px">Public anon key (RLS enforced)</td></tr>
+            <tr><td><code>NEXT_PUBLIC_API_URL</code></td><td style="color:var(--dim);font-size:12px">Railway backend base URL</td></tr>
+          </table>
+        </div>
+
+        <div>
+          <div style="font-size:11px;font-weight:700;color:#e879f9;text-transform:uppercase;letter-spacing:.1em;margin-bottom:10px">🚂 Railway (backend)</div>
+          <table class="data-table" style="background:var(--surface);border-radius:12px;overflow:hidden;border:1px solid var(--border)">
+            <tr><td><code>SUPABASE_URL</code></td><td style="color:var(--dim);font-size:12px">Supabase project URL</td></tr>
+            <tr><td><code>SUPABASE_SERVICE_KEY</code></td><td style="color:var(--dim);font-size:12px">Service role key (bypasses RLS)</td></tr>
+            <tr><td><code>ANTHROPIC_API_KEY</code></td><td style="color:var(--dim);font-size:12px">Claude API key</td></tr>
+            <tr><td><code>GOOGLE_CLIENT_ID</code></td><td style="color:var(--dim);font-size:12px">OAuth 2.0 client ID</td></tr>
+            <tr><td><code>GOOGLE_CLIENT_SECRET</code></td><td style="color:var(--dim);font-size:12px">OAuth 2.0 secret</td></tr>
+            <tr><td><code>FRONTEND_URL</code></td><td style="color:var(--dim);font-size:12px">Vercel app URL (redirects)</td></tr>
+            <tr><td><code>CRON_SECRET</code></td><td style="color:var(--dim);font-size:12px">Shared secret for GH Actions</td></tr>
+          </table>
+        </div>
+
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 8 — API SURFACE
+════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label label-green">Section 08</span>
+    <h2 style="margin-top:10px">Railway API Endpoints</h2>
+    <p>All authenticated with Supabase JWT in the <code>Authorization: Bearer &lt;token&gt;</code> header, except the OAuth callback.</p>
+
+    <div style="margin-top:24px;display:flex;flex-direction:column;gap:8px">
+
+      <div class="deploy-row stripe-green">
+        <span class="badge label label-green" style="min-width:50px;text-align:center">POST</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/clean/{account_id}</span>
+        <span class="desc">Trigger a cleaning run for one account</span>
+      </div>
+      <div class="deploy-row stripe-green">
+        <span class="badge label label-green" style="min-width:50px;text-align:center">POST</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/clean/all-accounts</span>
+        <span class="desc">GitHub Actions: clean every enabled account</span>
+      </div>
+      <div class="deploy-row stripe-blue">
+        <span class="badge label label-blue" style="min-width:50px;text-align:center">GET</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/auth/gmail/url</span>
+        <span class="desc">Generate OAuth consent URL + store PKCE verifier</span>
+      </div>
+      <div class="deploy-row stripe-amber">
+        <span class="badge label label-amber" style="min-width:50px;text-align:center">GET</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/auth/gmail/callback</span>
+        <span class="desc">Google redirects here · exchange code → tokens · 302 to Vercel</span>
+      </div>
+      <div class="deploy-row stripe-blue">
+        <span class="badge label label-blue" style="min-width:50px;text-align:center">GET</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/accounts</span>
+        <span class="desc">List user's connected email accounts</span>
+      </div>
+      <div class="deploy-row stripe-green">
+        <span class="badge label label-green" style="min-width:50px;text-align:center">POST</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/accounts/imap</span>
+        <span class="desc">Connect Yahoo / Outlook / iCloud via IMAP + app password</span>
+      </div>
+      <div class="deploy-row stripe-red">
+        <span class="badge label label-red" style="min-width:50px;text-align:center">DEL</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/accounts/{id}</span>
+        <span class="desc">Disconnect and delete an account</span>
+      </div>
+      <div class="deploy-row stripe-blue">
+        <span class="badge label label-blue" style="min-width:50px;text-align:center">GET</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/history/runs</span>
+        <span class="desc">Cleaning run history with status + counts</span>
+      </div>
+      <div class="deploy-row stripe-blue">
+        <span class="badge label label-blue" style="min-width:50px;text-align:center">GET</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/history/runs/{id}</span>
+        <span class="desc">Full email-level detail for one run</span>
+      </div>
+      <div class="deploy-row stripe-blue">
+        <span class="badge label label-blue" style="min-width:50px;text-align:center">GET</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/settings/keep-rules</span>
+        <span class="desc">List user's keep rules</span>
+      </div>
+      <div class="deploy-row stripe-green">
+        <span class="badge label label-green" style="min-width:50px;text-align:center">POST</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/settings/keep-rules</span>
+        <span class="desc">Add a new keep rule (keyword + match field)</span>
+      </div>
+      <div class="deploy-row stripe-red">
+        <span class="badge label label-red" style="min-width:50px;text-align:center">DEL</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/settings/keep-rules/{id}</span>
+        <span class="desc">Remove a keep rule</span>
+      </div>
+      <div class="deploy-row stripe-blue">
+        <span class="badge label label-blue" style="min-width:50px;text-align:center">GET</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/settings/profile</span>
+        <span class="desc">Get user preferences (old_read_days)</span>
+      </div>
+      <div class="deploy-row stripe-violet">
+        <span class="badge label label-violet" style="min-width:50px;text-align:center">PATCH</span>
+        <span style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">/settings/profile</span>
+        <span class="desc">Update cleaning aggressiveness threshold</span>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 9 — SUBSCRIPTION PLANS
+════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label label-indigo">Section 09</span>
+    <h2 style="margin-top:10px">Subscription Plans</h2>
+    <p>Stripe billing is coming soon. Current limits enforced in the backend.</p>
+
+    <div class="grid-3" style="margin-top:24px">
+
+      <div class="card stripe-blue">
+        <div class="label label-blue" style="margin-bottom:12px">Free</div>
+        <div style="font-size:2rem;font-weight:800;color:var(--text);margin:8px 0">$0</div>
+        <div style="font-size:12px;color:var(--dim);margin-bottom:16px">Forever</div>
+        <table class="data-table" style="margin-top:0">
+          <tr><td>Emails / run</td><td style="color:var(--text);font-weight:600">100</td></tr>
+          <tr><td>Accounts</td><td style="color:var(--text);font-weight:600">1</td></tr>
+          <tr><td>Free cleans</td><td style="color:var(--text);font-weight:600">3</td></tr>
+          <tr><td>Scheduler</td><td style="color:var(--green2);font-weight:600">✓</td></tr>
+          <tr><td>Keep rules</td><td style="color:var(--green2);font-weight:600">✓</td></tr>
+        </table>
+      </div>
+
+      <div class="card stripe-indigo">
+        <div class="label label-indigo" style="margin-bottom:12px">Basic</div>
+        <div style="font-size:2rem;font-weight:800;color:var(--text);margin:8px 0">$4</div>
+        <div style="font-size:12px;color:var(--dim);margin-bottom:16px">per month</div>
+        <table class="data-table" style="margin-top:0">
+          <tr><td>Emails / run</td><td style="color:var(--text);font-weight:600">500</td></tr>
+          <tr><td>Accounts</td><td style="color:var(--text);font-weight:600">2</td></tr>
+          <tr><td>Cleans</td><td style="color:var(--green2);font-weight:600">Unlimited</td></tr>
+          <tr><td>Scheduler</td><td style="color:var(--green2);font-weight:600">✓</td></tr>
+          <tr><td>Keep rules</td><td style="color:var(--green2);font-weight:600">✓</td></tr>
+        </table>
+      </div>
+
+      <div class="card stripe-violet">
+        <div class="label label-violet" style="margin-bottom:12px">Pro ⭐</div>
+        <div style="font-size:2rem;font-weight:800;color:var(--text);margin:8px 0">$9</div>
+        <div style="font-size:12px;color:var(--dim);margin-bottom:16px">per month</div>
+        <table class="data-table" style="margin-top:0">
+          <tr><td>Emails / run</td><td style="color:var(--text);font-weight:600">2,000</td></tr>
+          <tr><td>Accounts</td><td style="color:var(--text);font-weight:600">5</td></tr>
+          <tr><td>Cleans</td><td style="color:var(--green2);font-weight:600">Unlimited</td></tr>
+          <tr><td>Scheduler</td><td style="color:var(--green2);font-weight:600">✓</td></tr>
+          <tr><td>Priority support</td><td style="color:var(--green2);font-weight:600">✓</td></tr>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     SECTION 10 — URL MAP
+════════════════════════════════════════════════════════════ -->
+<div class="section">
+  <div class="container">
+    <span class="label label-blue">Section 10</span>
+    <h2 style="margin-top:10px">URL Map</h2>
+    <p>All production endpoints across the four services.</p>
+
+    <div class="grid-2" style="margin-top:24px;gap:20px">
+
+      <div class="card">
+        <div style="font-size:11px;font-weight:700;color:#818cf8;text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px">▲ Vercel — chenesa.vercel.app</div>
+        <table class="data-table" style="margin-top:0">
+          <tr><td><code>/</code></td><td style="color:var(--dim);font-size:12px">Marketing / landing page</td></tr>
+          <tr><td><code>/login</code></td><td style="color:var(--dim);font-size:12px">Sign in with Supabase Auth</td></tr>
+          <tr><td><code>/signup</code></td><td style="color:var(--dim);font-size:12px">Create account</td></tr>
+          <tr><td><code>/dashboard</code></td><td style="color:var(--dim);font-size:12px">Overview stats + recent runs</td></tr>
+          <tr><td><code>/accounts</code></td><td style="color:var(--dim);font-size:12px">Connect accounts · Run now</td></tr>
+          <tr><td><code>/history</code></td><td style="color:var(--dim);font-size:12px">Full cleaning history</td></tr>
+          <tr><td><code>/settings</code></td><td style="color:var(--dim);font-size:12px">Keep rules · Aggressiveness</td></tr>
+          <tr><td><code>/upgrade</code></td><td style="color:var(--dim);font-size:12px">Plans (coming soon)</td></tr>
+        </table>
+      </div>
+
+      <div class="card">
+        <div style="font-size:11px;font-weight:700;color:#e879f9;text-transform:uppercase;letter-spacing:.1em;margin-bottom:14px">🚂 Railway — chenesa-production.up.railway.app</div>
+        <table class="data-table" style="margin-top:0">
+          <tr><td><code>/docs</code></td><td style="color:var(--dim);font-size:12px">FastAPI Swagger UI (dev)</td></tr>
+          <tr><td><code>/health</code></td><td style="color:var(--dim);font-size:12px">Health check endpoint</td></tr>
+          <tr><td><code>/auth/gmail/url</code></td><td style="color:var(--dim);font-size:12px">Generate OAuth URL</td></tr>
+          <tr><td><code>/auth/gmail/callback</code></td><td style="color:var(--dim);font-size:12px">Google OAuth callback</td></tr>
+          <tr><td><code>/clean/{id}</code></td><td style="color:var(--dim);font-size:12px">Trigger cleaning run</td></tr>
+          <tr><td><code>/accounts</code></td><td style="color:var(--dim);font-size:12px">Account CRUD</td></tr>
+          <tr><td><code>/history/*</code></td><td style="color:var(--dim);font-size:12px">Run history + email detail</td></tr>
+          <tr><td><code>/settings/*</code></td><td style="color:var(--dim);font-size:12px">Keep rules + profile prefs</td></tr>
+        </table>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- ════════════════════════════════════════════════════════════
+     FOOTER
+════════════════════════════════════════════════════════════ -->
+<div class="page-footer">
+  <div style="margin-bottom:8px">
+    <span style="font-size:22px">✉️</span>
+    <span style="font-weight:700;font-size:16px;color:#f1f5f9;margin-left:8px">Chenesa</span>
+  </div>
+  <div style="color:var(--dim);font-size:12px">
+    A <span style="color:var(--muted);font-weight:500">Camluk Technologies</span> AI Solutions product
+  </div>
+  <div style="color:#334155;font-size:11px;margin-top:6px">
+    © 2026 Chenesa · Built with AI · Your emails, your privacy
+  </div>
+  <div style="margin-top:16px;display:flex;gap:12px;justify-content:center;flex-wrap:wrap;font-size:11px">
+    <span style="color:#334155">Stack: Next.js 14 · FastAPI · Supabase · Claude Haiku 4.5</span>
+  </div>
+</div>
+
+</body>
+</html>
