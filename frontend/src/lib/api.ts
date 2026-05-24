@@ -42,6 +42,10 @@ export const api = {
   deleteKeepRule: (id: string)                 => authFetch(`/settings/keep-rules/${id}`, { method: 'DELETE' }),
 
   getProfilePrefs: ()                          => authFetch('/settings/profile'),
+  // Returns { old_read_days, free_runs_used, free_runs_limit }
   updateProfilePrefs: (prefs: { old_read_days: number }) =>
     authFetch('/settings/profile', { method: 'PATCH', body: JSON.stringify(prefs) }),
+
+  joinWaitlist: (email: string) =>
+    authFetch('/waitlist', { method: 'POST', body: JSON.stringify({ email }) }),
 }

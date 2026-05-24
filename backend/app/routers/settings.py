@@ -20,9 +20,15 @@ class ProfilePrefsIn(BaseModel):
 @router.get("/profile")
 async def get_profile_prefs(user_id: str = Depends(get_current_user)):
     supabase = get_supabase()
-    row = supabase.table("profiles").select("old_read_days") \
+    row = supabase.table("profiles") \
+        .select("old_read_days, free_runs_used, free_runs_limit") \
         .eq("id", user_id).single().execute()
-    return {"old_read_days": (row.data or {}).get("old_read_days", 180)}
+    data = row.data or {}
+    return {
+        "old_read_days":   data.get("old_read_days",   180),
+        "free_runs_used":  data.get("free_runs_used",  0),
+        "free_runs_limit": data.get("free_runs_limit", 1),
+    }
 
 
 @router.patch("/profile")

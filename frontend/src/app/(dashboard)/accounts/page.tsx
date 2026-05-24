@@ -2,7 +2,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
-import { Trash2, Play, CheckCircle, XCircle, Zap, Mail } from 'lucide-react'
+import { Trash2, Play, CheckCircle, XCircle, Zap, Mail, Bell, Send, Sparkles } from 'lucide-react'
 import { api } from '@/lib/api'
 import { getProviderIcon } from '@/lib/constants'
 import Button from '@/components/ui/Button'
@@ -10,6 +10,7 @@ import Input from '@/components/ui/Input'
 
 type Account   = { id: string; email: string; type: string; enabled: boolean; created_at: string }
 type RunResult = { status: 'completed' | 'failed'; emails_deleted: number; emails_kept: number; error_message?: string }
+type Profile   = { free_runs_used: number; free_runs_limit: number }
 
 // ── Fake terminal lines ───────────────────────────────────────────────────
 const SPAM_LINES = [
@@ -232,6 +233,98 @@ function RunResultCard({ accountEmail, result, onDismiss }: {
   )
 }
 
+// ── Waitlist card (beta) ──────────────────────────────────────────────────
+const WAITLIST_KEY = 'chenesa-waitlist'
+
+function WaitlistCard() {
+  const [submitted, setSubmitted] = useState(false)
+  const [email,     setEmail]     = useState('')
+  const [sending,   setSending]   = useState(false)
+  const [error,     setError]     = useState('')
+
+  // Persist submitted state across refreshes
+  useEffect(() => {
+    if (localStorage.getItem(WAITLIST_KEY) === '1') setSubmitted(true)
+  }, [])
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setSending(true); setError('')
+    try {
+      await api.joinWaitlist(email)
+      localStorage.setItem(WAITLIST_KEY, '1')
+      setSubmitted(true)
+    } catch (err: any) {
+      setError(err.message ?? 'Something went wrong — please try again.')
+    }
+    setSending(false)
+  }
+
+  return (
+    <div className="rounded-2xl border border-primary-500/30 bg-gradient-to-br from-primary-950/50 to-slate-900 p-6 shadow-xl shadow-primary-900/20">
+      {submitted ? (
+        /* ── Success state ── */
+        <div className="text-center py-2">
+          <div className="inline-flex items-center justify-center w-14 h-14 rounded-full bg-green-500/10 border border-green-500/30 mb-4">
+            <CheckCircle size={28} className="text-green-400" />
+          </div>
+          <h3 className="text-lg font-bold text-white mb-1">You're on the list! 🎉</h3>
+          <p className="text-sm text-slate-400 leading-relaxed max-w-xs mx-auto">
+            We'll email you the moment Chenesa goes live. Thanks for being part of the beta!
+          </p>
+        </div>
+      ) : (
+        /* ── Form state ── */
+        <>
+          <div className="flex items-start gap-4 mb-5">
+            <div className="flex-shrink-0 w-11 h-11 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center">
+              <Sparkles size={20} className="text-primary-400" />
+            </div>
+            <div>
+              <h3 className="font-bold text-white">Thank you for testing! 🙏</h3>
+              <p className="text-sm text-slate-400 mt-0.5 leading-relaxed">
+                You've used your free beta run. Enter your email below and we'll notify you the moment we go live with unlimited cleans.
+              </p>
+            </div>
+          </div>
+
+          <form onSubmit={handleSubmit} className="space-y-3">
+            <div className="flex gap-2">
+              <div className="flex-1 relative">
+                <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none" />
+                <input
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={e => setEmail(e.target.value)}
+                  required
+                  className="w-full pl-9 pr-3 py-2.5 rounded-xl bg-slate-800/80 border border-slate-700 text-sm text-white placeholder-slate-500
+                    focus:outline-none focus:ring-2 focus:ring-primary-500/50 focus:border-primary-500/60 transition-all"
+                />
+              </div>
+              <button
+                type="submit"
+                disabled={sending}
+                className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-gradient-to-r from-primary-600 to-primary-500 text-white text-sm font-semibold
+                  hover:from-primary-500 hover:to-primary-400 disabled:opacity-50 disabled:cursor-not-allowed
+                  shadow-lg shadow-primary-900/40 transition-all active:scale-95 whitespace-nowrap"
+              >
+                {sending ? (
+                  <span className="animate-pulse">Sending…</span>
+                ) : (
+                  <><Bell size={13} /> Notify me</>
+                )}
+              </button>
+            </div>
+            {error && <p className="text-xs text-red-400">{error}</p>}
+            <p className="text-xs text-slate-600 text-center">No spam, ever. Just a launch notification.</p>
+          </form>
+        </>
+      )}
+    </div>
+  )
+}
+
 // ── Skeleton loader ───────────────────────────────────────────────────────
 function Skeleton() {
   return (
@@ -257,6 +350,7 @@ export default function AccountsPage() {
   const oauthError     = searchParams.get('error')
 
   const [accounts,     setAccounts]     = useState<Account[]>([])
+  const [profile,      setProfile]      = useState<Profile | null>(null)
   const [loading,      setLoading]      = useState(true)
   const [activeRun,    setActiveRun]    = useState<{ accountId: string; runId: string; email: string } | null>(null)
   const [runResult,    setRunResult]    = useState<{ email: string; result: RunResult } | null>(null)
@@ -267,9 +361,15 @@ export default function AccountsPage() {
   const [connecting,   setConnecting]   = useState(false)
   const [error,        setError]        = useState('')
 
+  const runsExhausted = profile !== null && profile.free_runs_used >= profile.free_runs_limit
+
   const load = async () => {
     setLoading(true)
-    try { setAccounts(await api.getAccounts()) } catch (e: any) { setError(e.message) }
+    try {
+      const [accs, prefs] = await Promise.all([api.getAccounts(), api.getProfilePrefs()])
+      setAccounts(accs)
+      setProfile({ free_runs_used: prefs.free_runs_used, free_runs_limit: prefs.free_runs_limit })
+    } catch (e: any) { setError(e.message) }
     setLoading(false)
   }
 
@@ -283,8 +383,15 @@ export default function AccountsPage() {
     } catch (e: any) { setError(e.message) }
   }
 
-  const handleRunDone = (result: RunResult) => {
-    const email = activeRun!.email; setActiveRun(null); setRunResult({ email, result })
+  const handleRunDone = async (result: RunResult) => {
+    const email = activeRun!.email
+    setActiveRun(null)
+    setRunResult({ email, result })
+    // Refresh profile so runsExhausted recalculates
+    try {
+      const prefs = await api.getProfilePrefs()
+      setProfile({ free_runs_used: prefs.free_runs_used, free_runs_limit: prefs.free_runs_limit })
+    } catch {}
   }
 
   const handleDelete = async (id: string) => {
@@ -300,6 +407,9 @@ export default function AccountsPage() {
     } catch (e: any) { setError(e.message) }
     setConnecting(false)
   }
+
+  // Show the waitlist card once a run completes (successfully) or runs are exhausted
+  const showWaitlist = runsExhausted || runResult?.result.status === 'completed'
 
   return (
     <div className="w-full max-w-5xl space-y-8">
@@ -358,6 +468,9 @@ export default function AccountsPage() {
         <RunResultCard accountEmail={runResult.email} result={runResult.result} onDismiss={() => setRunResult(null)} />
       )}
 
+      {/* Beta waitlist card — shown after run completes or when limit reached */}
+      {showWaitlist && <WaitlistCard />}
+
       {/* Account list */}
       {loading ? <Skeleton /> : accounts.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-slate-700 p-12 text-center">
@@ -379,19 +492,28 @@ export default function AccountsPage() {
                   <p className="text-xs text-slate-500 capitalize mt-0.5">{acc.type} · connected</p>
                 </div>
                 <div className="flex items-center gap-2">
-                  <button
-                    disabled={!!activeRun}
-                    onClick={() => handleRun(acc)}
-                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
-                      bg-gradient-to-r from-primary-600 to-primary-500 text-white
-                      hover:from-primary-500 hover:to-primary-400
-                      shadow-md shadow-primary-900/40
-                      disabled:opacity-40 disabled:cursor-not-allowed
-                      transition-all duration-150 active:scale-95"
-                  >
-                    <Zap size={13} className={activeRun?.accountId === acc.id ? 'animate-pulse' : ''} />
-                    {activeRun?.accountId === acc.id ? 'Running…' : 'Run now'}
-                  </button>
+                  {runsExhausted ? (
+                    /* Beta limit reached — greyed out badge */
+                    <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
+                      bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed select-none">
+                      <CheckCircle size={13} className="text-slate-600" />
+                      Test run used
+                    </div>
+                  ) : (
+                    <button
+                      disabled={!!activeRun}
+                      onClick={() => handleRun(acc)}
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium
+                        bg-gradient-to-r from-primary-600 to-primary-500 text-white
+                        hover:from-primary-500 hover:to-primary-400
+                        shadow-md shadow-primary-900/40
+                        disabled:opacity-40 disabled:cursor-not-allowed
+                        transition-all duration-150 active:scale-95"
+                    >
+                      <Zap size={13} className={activeRun?.accountId === acc.id ? 'animate-pulse' : ''} />
+                      {activeRun?.accountId === acc.id ? 'Running…' : 'Run now'}
+                    </button>
+                  )}
                   <button
                     onClick={() => handleDelete(acc.id)}
                     className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-900/20 transition-colors"
