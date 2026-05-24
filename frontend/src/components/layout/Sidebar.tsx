@@ -20,7 +20,7 @@ export default function Sidebar({ email }: { email: string }) {
   const handleLogout = async () => {
     const supabase = createClient()
     await supabase.auth.signOut()
-    router.push('/login')
+    router.push('/')
   }
 
   const initial = (email[0] ?? '?').toUpperCase()
@@ -82,6 +82,16 @@ export default function Sidebar({ email }: { email: string }) {
           <LogOut size={15} />
           Sign out
         </button>
+
+        {/* Footer */}
+        <div className="pt-2 space-y-0.5 text-center">
+          <p className="text-[9px] text-slate-700 leading-tight">
+            A <span className="text-slate-600">Camluk Technologies</span> AI Solutions product
+          </p>
+          <p className="text-[9px] text-slate-700 leading-tight">
+            © 2026 Chenesa. Your emails, your privacy.
+          </p>
+        </div>
       </div>
 
     </aside>
