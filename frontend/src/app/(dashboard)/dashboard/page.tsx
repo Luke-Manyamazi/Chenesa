@@ -3,31 +3,27 @@ import Link from 'next/link'
 import {
   Trash2, Play, Mail, Clock, TrendingUp,
   ArrowRight, CheckCircle, AlertCircle, Loader2,
-  Zap, BarChart3,
+  BarChart3, Shield, Zap, CalendarClock,
 } from 'lucide-react'
 import { getProviderIcon } from '@/lib/constants'
 
-function StatCard({
-  label, value, sub, color, icon: Icon,
-}: {
+function StatCard({ label, value, sub, color, icon: Icon }: {
   label: string; value: string; sub: string
   color: 'red' | 'purple' | 'blue' | 'green'
   icon: React.ElementType
 }) {
-  const palette = {
-    red:    'border-red-500/20    bg-gradient-to-br from-red-950/50    to-slate-900 text-red-400',
-    purple: 'border-primary-500/20 bg-gradient-to-br from-primary-950/50 to-slate-900 text-primary-400',
-    blue:   'border-blue-500/20   bg-gradient-to-br from-blue-950/50   to-slate-900 text-blue-400',
-    green:  'border-green-500/20  bg-gradient-to-br from-green-950/50  to-slate-900 text-green-400',
-  }
-  const cls = palette[color]
+  const ring = {
+    red:    'border-red-500/20    from-red-950/50    text-red-400',
+    purple: 'border-primary-500/20 from-primary-950/50 text-primary-400',
+    blue:   'border-blue-500/20   from-blue-950/50   text-blue-400',
+    green:  'border-green-500/20  from-green-950/50  text-green-400',
+  }[color]
+  const [border, from, accent] = ring.split(' ')
   return (
-    <div className={`rounded-2xl border p-5 ${cls.split(' ').slice(0,2).join(' ')} ${cls.split(' ').slice(2,6).join(' ')}`}>
+    <div className={`rounded-2xl border ${border} bg-gradient-to-br ${from} to-slate-900/50 p-5`}>
       <div className="flex items-center justify-between mb-4">
-        <span className={`text-[10px] font-bold uppercase tracking-widest ${cls.split(' ').at(-1)}`}>{label}</span>
-        <div className={`w-8 h-8 rounded-lg flex items-center justify-center bg-current/10`}>
-          <Icon size={15} className={cls.split(' ').at(-1)} />
-        </div>
+        <span className={`text-[10px] font-bold uppercase tracking-widest ${accent}`}>{label}</span>
+        <Icon size={15} className={`${accent} opacity-70`} />
       </div>
       <p className="text-3xl font-bold text-white tracking-tight">{value}</p>
       <p className="text-xs text-slate-500 mt-1">{sub}</p>
@@ -50,30 +46,35 @@ export default async function DashboardPage() {
       .select('*, email_accounts(email)')
       .eq('user_id', user!.id)
       .order('started_at', { ascending: false })
-      .limit(10),
+      .limit(20),
   ])
 
   const profile  = profileRes.data
   const accounts = accountsRes.data ?? []
   const runs     = runsRes.data ?? []
 
-  const plan       = profile?.subscription_plan ?? 'free'
-  const runsUsed   = profile?.free_runs_used ?? 0
-  const runsLimit  = profile?.free_runs_limit ?? 3
+  const plan      = profile?.subscription_plan ?? 'free'
+  const runsUsed  = profile?.free_runs_used ?? 0
+  const runsLimit = profile?.free_runs_limit ?? 3
 
-  const completedRuns  = runs.filter((r: any) => r.status === 'completed')
-  const totalDeleted   = completedRuns.reduce((s: number, r: any) => s + (r.emails_deleted ?? 0), 0)
-  const totalRuns      = completedRuns.length
-  const timeSavedMins  = Math.round(totalDeleted * 10 / 60)
-  const timeSavedLabel = timeSavedMins >= 60
-    ? `${Math.round(timeSavedMins / 60)}h`
-    : `${timeSavedMins}m`
+  const completedRuns = runs.filter((r: any) => r.status === 'completed')
+  const totalDeleted  = completedRuns.reduce((s: number, r: any) => s + (r.emails_deleted ?? 0), 0)
+  const totalRuns     = completedRuns.length
+  const timeSavedMins = Math.round(totalDeleted * 10 / 60)
+  const timeSaved     = timeSavedMins >= 60 ? `${Math.round(timeSavedMins / 60)}h` : `${timeSavedMins}m`
 
   const hour = new Date().getHours()
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
+  const planColors: Record<string, string> = {
+    free:  'bg-slate-700/60 text-slate-300',
+    basic: 'bg-blue-500/15 text-blue-400',
+    pro:   'bg-primary-500/15 text-primary-300',
+  }
+  const planLabel: Record<string, string> = { free: 'Free', basic: 'Basic', pro: 'Pro' }
+
   return (
-    <div className="max-w-5xl space-y-8">
+    <div className="w-full space-y-6">
 
       {/* ── Header ── */}
       <div className="flex items-start justify-between">
@@ -89,17 +90,16 @@ export default async function DashboardPage() {
           className="flex items-center gap-2 px-4 py-2.5 rounded-xl
             bg-gradient-to-r from-primary-600 to-primary-500 text-white text-sm font-semibold
             hover:opacity-90 transition-opacity shadow-lg shadow-primary-900/40 flex-shrink-0">
-          <Zap size={14} className="fill-white" />
-          Run clean
+          <Zap size={14} className="fill-white" /> Run clean
         </Link>
       </div>
 
-      {/* ── Stats row ── */}
-      <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
-        <StatCard label="Deleted"   value={totalDeleted.toLocaleString()} sub="emails removed"    color="red"    icon={Trash2}     />
-        <StatCard label="Runs"      value={String(totalRuns)}             sub="completed"          color="purple" icon={BarChart3}  />
-        <StatCard label="Accounts"  value={String(accounts.length)}       sub="connected"          color="blue"   icon={Mail}       />
-        <StatCard label="Saved"     value={timeSavedLabel}                sub="estimated time"     color="green"  icon={Clock}      />
+      {/* ── Stat cards ── */}
+      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
+        <StatCard label="Deleted"  value={totalDeleted.toLocaleString()} sub="emails removed"  color="red"    icon={Trash2}    />
+        <StatCard label="Runs"     value={String(totalRuns)}             sub="completed"        color="purple" icon={BarChart3} />
+        <StatCard label="Accounts" value={String(accounts.length)}       sub="connected"        color="blue"   icon={Mail}      />
+        <StatCard label="Saved"    value={timeSaved}                     sub="estimated time"   color="green"  icon={Clock}     />
       </div>
 
       {/* ── Free trial banner ── */}
@@ -108,9 +108,7 @@ export default async function DashboardPage() {
           <div className="flex items-center justify-between mb-3">
             <div>
               <p className="text-sm font-semibold text-amber-300">Free trial</p>
-              <p className="text-xs text-amber-500/70 mt-0.5">
-                {runsUsed} of {runsLimit} free cleans used
-              </p>
+              <p className="text-xs text-amber-500/70 mt-0.5">{runsUsed} of {runsLimit} free cleans used</p>
             </div>
             <Link href="/settings"
               className="px-3 py-1.5 rounded-lg bg-amber-600 hover:bg-amber-500 text-white text-xs font-semibold transition-colors">
@@ -124,106 +122,157 @@ export default async function DashboardPage() {
         </div>
       )}
 
-      {/* ── Recent activity ── */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-white">Recent activity</h2>
-          <Link href="/history"
-            className="flex items-center gap-1 text-sm text-primary-400 hover:text-primary-300 transition-colors">
-            Full history <ArrowRight size={14} />
-          </Link>
-        </div>
+      {/* ── Two-column body ── */}
+      <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
 
-        {runs.length === 0 ? (
-          <div className="rounded-2xl border border-dashed border-slate-700 p-14 text-center">
-            <div className="w-14 h-14 rounded-2xl bg-slate-800/80 border border-slate-700 flex items-center justify-center mx-auto mb-4">
-              <Trash2 size={24} className="text-slate-500" />
-            </div>
-            <p className="text-slate-300 font-semibold mb-1">No cleaning runs yet</p>
-            <p className="text-slate-500 text-sm mb-5">Connect an account and run your first clean to get started</p>
-            <Link href="/accounts"
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-semibold transition-colors">
-              <Play size={14} /> Get started
-            </Link>
-          </div>
-        ) : (
-          <div className="rounded-2xl border border-border bg-surface overflow-hidden">
-            {/* Table header */}
-            <div className="grid grid-cols-[1fr_100px_80px_80px_90px] text-[10px] font-bold uppercase tracking-widest text-slate-600 px-5 py-3 border-b border-border bg-slate-900/40">
-              <span>Account</span>
-              <span className="text-center">Date</span>
-              <span className="text-right">Deleted</span>
-              <span className="text-right">Kept</span>
-              <span className="text-right">Status</span>
-            </div>
-            {runs.map((run: any) => (
-              <div key={run.id}
-                className="grid grid-cols-[1fr_100px_80px_80px_90px] items-center px-5 py-3.5 border-b border-border/40 last:border-0 hover:bg-slate-800/25 transition-colors text-sm">
-                <span className="text-slate-200 truncate font-medium">
-                  {run.email_accounts?.email ?? '—'}
-                </span>
-                <span className="text-center text-slate-500 text-xs">
-                  {new Date(run.started_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                </span>
-                <span className="text-right font-bold text-red-400 tabular-nums">
-                  {(run.emails_deleted ?? 0).toLocaleString()}
-                </span>
-                <span className="text-right text-slate-400 tabular-nums">
-                  {(run.emails_kept ?? 0).toLocaleString()}
-                </span>
-                <span className="text-right">
-                  {run.status === 'completed' ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-green-400 font-medium">
-                      <CheckCircle size={11} /> Done
-                    </span>
-                  ) : run.status === 'running' ? (
-                    <span className="inline-flex items-center gap-1 text-xs text-primary-400 font-medium">
-                      <Loader2 size={11} className="animate-spin" /> Running
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-xs text-red-400 font-medium">
-                      <AlertCircle size={11} /> Failed
-                    </span>
-                  )}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* ── Accounts quick view ── */}
-      {accounts.length > 0 && (
-        <div>
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-white">Connected accounts</h2>
-            <Link href="/accounts"
+        {/* LEFT — Recent activity (takes 2/3) */}
+        <div className="lg:col-span-2 space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-base font-semibold text-white">Recent activity</h2>
+            <Link href="/history"
               className="flex items-center gap-1 text-sm text-primary-400 hover:text-primary-300 transition-colors">
-              Manage <ArrowRight size={14} />
+              Full history <ArrowRight size={13} />
             </Link>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {accounts.map((acc: any) => (
-              <div key={acc.id}
-                className="group flex items-center gap-4 rounded-2xl border border-border bg-surface p-4
-                  hover:border-primary-500/40 hover:bg-slate-800/40 transition-all duration-200">
-                <div className="w-11 h-11 rounded-xl bg-slate-700/60 border border-slate-600/40 flex items-center justify-center text-2xl flex-shrink-0">
-                  {getProviderIcon(acc.email)}
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-white truncate text-sm">{acc.email}</p>
-                  <p className="text-xs text-slate-500 capitalize mt-0.5">{acc.type} · active</p>
-                </div>
-                <Link href="/accounts"
-                  className="flex items-center gap-1 text-xs text-slate-500 group-hover:text-primary-400 transition-colors">
-                  Run <ArrowRight size={12} />
-                </Link>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
 
+          {runs.length === 0 ? (
+            <div className="rounded-2xl border border-dashed border-slate-700 p-12 text-center">
+              <Trash2 size={28} className="text-slate-600 mx-auto mb-3" />
+              <p className="text-slate-300 font-semibold mb-1">No cleaning runs yet</p>
+              <p className="text-slate-500 text-sm mb-4">Connect an account and run your first clean</p>
+              <Link href="/accounts"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-xl bg-primary-600 hover:bg-primary-500 text-white text-sm font-semibold transition-colors">
+                <Play size={13} /> Get started
+              </Link>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-border bg-surface overflow-hidden">
+              <div className="grid grid-cols-[1fr_90px_70px_70px_80px] text-[10px] font-bold uppercase tracking-widest text-slate-600 px-5 py-3 border-b border-border bg-slate-900/40">
+                <span>Account</span>
+                <span className="text-center">Date</span>
+                <span className="text-right">Deleted</span>
+                <span className="text-right">Kept</span>
+                <span className="text-right">Status</span>
+              </div>
+              {runs.map((run: any) => (
+                <div key={run.id}
+                  className="grid grid-cols-[1fr_90px_70px_70px_80px] items-center px-5 py-3 border-b border-border/40 last:border-0 hover:bg-slate-800/25 transition-colors text-sm">
+                  <span className="text-slate-200 truncate font-medium">{run.email_accounts?.email ?? '—'}</span>
+                  <span className="text-center text-slate-500 text-xs">
+                    {new Date(run.started_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  </span>
+                  <span className="text-right font-bold text-red-400 tabular-nums">{(run.emails_deleted ?? 0).toLocaleString()}</span>
+                  <span className="text-right text-slate-400 tabular-nums">{(run.emails_kept ?? 0).toLocaleString()}</span>
+                  <span className="text-right">
+                    {run.status === 'completed' ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-green-400 font-medium"><CheckCircle size={11} /> Done</span>
+                    ) : run.status === 'running' ? (
+                      <span className="inline-flex items-center gap-1 text-xs text-primary-400 font-medium"><Loader2 size={11} className="animate-spin" /> Running</span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1 text-xs text-red-400 font-medium"><AlertCircle size={11} /> Failed</span>
+                    )}
+                  </span>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* RIGHT — Info panel (1/3) */}
+        <div className="space-y-4">
+
+          {/* Plan card */}
+          <div className="rounded-2xl border border-border bg-surface p-5 space-y-4">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <Zap size={14} className="text-primary-400" /> Your plan
+            </h3>
+            <div className="flex items-center justify-between">
+              <span className={`px-2.5 py-1 rounded-lg text-xs font-bold uppercase tracking-wide ${planColors[plan]}`}>
+                {planLabel[plan] ?? plan}
+              </span>
+              {plan === 'free' && (
+                <Link href="/settings" className="text-xs text-primary-400 hover:text-primary-300">Upgrade →</Link>
+              )}
+            </div>
+            <div className="space-y-1.5 text-xs text-slate-400">
+              <div className="flex justify-between">
+                <span>Emails per run</span>
+                <span className="text-white font-medium">
+                  {plan === 'pro' ? '2,000' : plan === 'basic' ? '500' : '100'}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span>Accounts</span>
+                <span className="text-white font-medium">
+                  {plan === 'pro' ? '5' : plan === 'basic' ? '2' : '1'}
+                </span>
+              </div>
+              {plan === 'free' && (
+                <div className="flex justify-between">
+                  <span>Free runs left</span>
+                  <span className="text-amber-400 font-medium">{Math.max(0, runsLimit - runsUsed)}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Connected accounts */}
+          <div className="rounded-2xl border border-border bg-surface p-5 space-y-3">
+            <h3 className="text-sm font-semibold text-white flex items-center justify-between">
+              <span className="flex items-center gap-2"><Mail size={14} className="text-blue-400" /> Accounts</span>
+              <Link href="/accounts" className="text-xs text-primary-400 hover:text-primary-300">Manage →</Link>
+            </h3>
+            {accounts.length === 0 ? (
+              <Link href="/accounts"
+                className="flex items-center justify-center gap-2 rounded-xl border border-dashed border-slate-700 p-4 text-xs text-slate-500 hover:border-primary-500/40 hover:text-primary-400 transition-colors">
+                <Play size={12} /> Connect your first account
+              </Link>
+            ) : (
+              <div className="space-y-2">
+                {accounts.map((acc: any) => (
+                  <div key={acc.id}
+                    className="flex items-center gap-3 rounded-xl bg-slate-800/40 border border-slate-700/40 px-3 py-2.5">
+                    <span className="text-lg">{getProviderIcon(acc.email)}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-xs font-medium text-white truncate">{acc.email}</p>
+                      <p className="text-[10px] text-slate-500 capitalize">{acc.type}</p>
+                    </div>
+                    <div className="w-1.5 h-1.5 rounded-full bg-green-400 flex-shrink-0" title="Active" />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Scheduler info */}
+          <div className="rounded-2xl border border-border bg-surface p-5 space-y-3">
+            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
+              <CalendarClock size={14} className="text-green-400" /> Auto-scheduler
+            </h3>
+            <p className="text-xs text-slate-400 leading-relaxed">
+              GitHub Actions runs a clean automatically every <span className="text-white font-medium">6 hours</span> across all your accounts.
+            </p>
+            <div className="flex items-center gap-2">
+              <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
+              <span className="text-xs text-green-400 font-medium">Active</span>
+            </div>
+          </div>
+
+          {/* Keep rules shortcut */}
+          <Link href="/settings"
+            className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4 hover:border-primary-500/40 transition-colors group">
+            <div className="w-9 h-9 rounded-xl bg-green-500/10 border border-green-500/20 flex items-center justify-center flex-shrink-0">
+              <Shield size={15} className="text-green-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white">Keep rules</p>
+              <p className="text-xs text-slate-500 mt-0.5">Protect important emails</p>
+            </div>
+            <ArrowRight size={14} className="text-slate-600 group-hover:text-primary-400 transition-colors flex-shrink-0" />
+          </Link>
+
+        </div>
+      </div>
     </div>
   )
 }

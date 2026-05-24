@@ -50,7 +50,7 @@ export default function HistoryPage() {
   const totalDeleted = runs.reduce((s, r) => s + (r.emails_deleted ?? 0), 0)
 
   return (
-    <div className="max-w-4xl space-y-8">
+    <div className="w-full space-y-8">
 
       {/* Header */}
       <div className="flex items-start justify-between">
