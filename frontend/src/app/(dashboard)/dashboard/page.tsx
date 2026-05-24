@@ -7,10 +7,11 @@ import {
 } from 'lucide-react'
 import { getProviderIcon } from '@/lib/constants'
 
-function StatCard({ label, value, sub, color, icon: Icon }: {
+function StatCard({ label, value, sub, color, icon: Icon, href }: {
   label: string; value: string; sub: string
   color: 'red' | 'purple' | 'blue' | 'green'
   icon: React.ElementType
+  href: string
 }) {
   const ring = {
     red:    'border-red-500/20    from-red-950/50    text-red-400',
@@ -20,14 +21,16 @@ function StatCard({ label, value, sub, color, icon: Icon }: {
   }[color]
   const [border, from, accent] = ring.split(' ')
   return (
-    <div className={`rounded-2xl border ${border} bg-gradient-to-br ${from} to-slate-900/50 p-5`}>
+    <Link href={href}
+      className={`rounded-2xl border ${border} bg-gradient-to-br ${from} to-slate-900/50 p-5
+        hover:brightness-110 hover:scale-[1.02] transition-all duration-150 block group`}>
       <div className="flex items-center justify-between mb-4">
         <span className={`text-[10px] font-bold uppercase tracking-widest ${accent}`}>{label}</span>
-        <Icon size={15} className={`${accent} opacity-70`} />
+        <Icon size={15} className={`${accent} opacity-70 group-hover:opacity-100 transition-opacity`} />
       </div>
       <p className="text-3xl font-bold text-white tracking-tight">{value}</p>
       <p className="text-xs text-slate-500 mt-1">{sub}</p>
-    </div>
+    </Link>
   )
 }
 
@@ -96,10 +99,10 @@ export default async function DashboardPage() {
 
       {/* ── Stat cards ── */}
       <div className="grid grid-cols-2 gap-4 lg:grid-cols-4">
-        <StatCard label="Deleted"  value={totalDeleted.toLocaleString()} sub="emails removed"  color="red"    icon={Trash2}    />
-        <StatCard label="Runs"     value={String(totalRuns)}             sub="completed"        color="purple" icon={BarChart3} />
-        <StatCard label="Accounts" value={String(accounts.length)}       sub="connected"        color="blue"   icon={Mail}      />
-        <StatCard label="Saved"    value={timeSaved}                     sub="estimated time"   color="green"  icon={Clock}     />
+        <StatCard label="Deleted"  value={totalDeleted.toLocaleString()} sub="emails removed"  color="red"    icon={Trash2}    href="/history"  />
+        <StatCard label="Runs"     value={String(totalRuns)}             sub="completed"        color="purple" icon={BarChart3} href="/history"  />
+        <StatCard label="Accounts" value={String(accounts.length)}       sub="connected"        color="blue"   icon={Mail}      href="/accounts" />
+        <StatCard label="Saved"    value={timeSaved}                     sub="estimated time"   color="green"  icon={Clock}     href="/history"  />
       </div>
 
       {/* ── Free trial banner ── */}
