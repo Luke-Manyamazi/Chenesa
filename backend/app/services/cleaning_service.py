@@ -2,6 +2,7 @@
 Cleaning service — orchestrates a full email clean for one user+account.
 Imports the existing Email-Automation core code via sys.path.
 """
+import asyncio
 import json
 from datetime import datetime, timezone
 
@@ -114,12 +115,17 @@ async def run_for_account(user_id: str, account_id: str, run_id: str) -> None:
         fake_cfg = _FakeCfg()
         fake_acc_cfg = _FakeAccountCfg()
 
-        # 5. Run the cleaner
+        # 5. Run the cleaner — in a thread so the async event loop stays free for polling
         from src.utils.models import RunStats
-        stats = RunStats(account=acc["email"])
-        cleaner = EmailCleaner(fake_cfg, dry_run=False)  # type: ignore
-        cleaner._process_account(email_account, fake_acc_cfg, stats)
-        email_account.close()
+
+        def _run_sync():
+            stats_obj = RunStats(account=acc["email"])
+            cleaner = EmailCleaner(fake_cfg, dry_run=False)  # type: ignore
+            cleaner._process_account(email_account, fake_acc_cfg, stats_obj)
+            email_account.close()
+            return stats_obj
+
+        stats = await asyncio.to_thread(_run_sync)
 
         # 6. We can't easily intercept per-email results from _process_account
         # so we just record the aggregate stats. For detailed per-email records,
