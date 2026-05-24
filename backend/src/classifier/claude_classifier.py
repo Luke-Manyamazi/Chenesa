@@ -46,8 +46,9 @@ class ClaudeClassifier:
     # Full dated ID used per user request; the alias "claude-haiku-4-5" also works.
     MODEL = "claude-haiku-4-5-20251001"
 
-    # Classification responses are tiny JSON arrays — 512 tokens is generous.
-    MAX_TOKENS = 512
+    # Each email result needs ~100 tokens (category + confidence + reasoning).
+    # batch_size=20 → up to 2,000 tokens. Use 4,096 for a safe ceiling.
+    MAX_TOKENS = 4096
 
     def __init__(self, api_key: str, rate_limiter: RateLimiter) -> None:
         self.client = anthropic.Anthropic(api_key=api_key)
