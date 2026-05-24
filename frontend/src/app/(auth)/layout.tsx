@@ -11,6 +11,14 @@ export default function AuthLayout({ children }: { children: React.ReactNode }) 
       <div className="w-full max-w-sm rounded-2xl border border-border bg-surface p-6 sm:p-8">
         {children}
       </div>
+      <div className="mt-8 text-center space-y-1">
+        <p className="text-[11px] text-slate-600">
+          A <span className="text-slate-500 font-medium">Camluk Technologies</span> AI Solutions product
+        </p>
+        <p className="text-[11px] text-slate-700">
+          © 2026 Chenesa. Built with AI. Your emails, your privacy.
+        </p>
+      </div>
     </div>
   )
 }

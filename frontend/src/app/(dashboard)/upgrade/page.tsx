@@ -131,6 +131,16 @@ export default function UpgradePage() {
         </div>
       </div>
 
+      {/* Footer */}
+      <div className="pt-2 pb-4 text-center space-y-1">
+        <p className="text-[11px] text-slate-600">
+          A <span className="text-slate-500 font-medium">Camluk Technologies</span> AI Solutions product
+        </p>
+        <p className="text-[11px] text-slate-700">
+          © 2026 Chenesa. Built with AI. Your emails, your privacy.
+        </p>
+      </div>
+
     </div>
   )
 }
