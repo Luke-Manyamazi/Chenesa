@@ -28,7 +28,7 @@ async def gmail_callback(code: str = Query(...), state: str = Query(...)):
     user_id = state
 
     try:
-        token_data = exchange_code(code)
+        token_data = exchange_code(code, state=user_id)
     except Exception as e:
         logger.error(f"Gmail token exchange failed: {e}")
         return RedirectResponse(url=f"{frontend}/accounts?error=token_exchange_failed", status_code=302)
