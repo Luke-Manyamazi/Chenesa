@@ -1,46 +1,27 @@
-import base64
+import asyncio
 from fastapi import Header, HTTPException
-from jose import jwt, JWTError
-from .config import get_settings
+from .db.supabase import get_supabase
 
 
 async def get_current_user(authorization: str = Header(...)) -> str:
     """
-    Verify Supabase JWT locally — fast, non-blocking, no network call.
-    Supabase signs tokens with the raw bytes of the base64-decoded secret.
+    Verify Supabase JWT via the auth API, run in a thread pool so the
+    sync Supabase client never blocks the async event loop.
     """
     try:
         token = authorization.removeprefix("Bearer ").strip()
         if not token:
             raise HTTPException(status_code=401, detail="No token provided")
 
-        settings = get_settings()
-        raw_secret = settings.supabase_jwt_secret
+        supabase = get_supabase()
+        # asyncio.to_thread runs the blocking call in a thread pool —
+        # the event loop stays free to handle other requests.
+        response = await asyncio.to_thread(supabase.auth.get_user, token)
 
-        # Supabase uses the base64-decoded bytes as the HMAC key.
-        # Try decoded first, fall back to raw string.
-        secrets_to_try: list = []
-        try:
-            secrets_to_try.append(base64.b64decode(raw_secret))
-        except Exception:
-            pass
-        secrets_to_try.append(raw_secret)
+        if not response or not response.user:
+            raise HTTPException(status_code=401, detail="Invalid or expired token")
 
-        last_err: Exception = Exception("Invalid token")
-        for secret in secrets_to_try:
-            try:
-                payload = jwt.decode(
-                    token,
-                    secret,
-                    algorithms=["HS256"],
-                    options={"verify_aud": False},
-                )
-                return payload["sub"]
-            except JWTError as e:
-                last_err = e
-                continue
-
-        raise HTTPException(status_code=401, detail="Invalid or expired token")
+        return response.user.id
 
     except HTTPException:
         raise
