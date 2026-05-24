@@ -128,7 +128,7 @@ export default function SettingsPage() {
           {/* Add rule form */}
           <form onSubmit={handleAdd} className="space-y-3">
             <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Add custom rule</p>
-            <div className="flex gap-3">
+            <div className="flex flex-col sm:flex-row gap-3">
               <div className="flex-1">
                 <Input
                   label=""
@@ -138,18 +138,18 @@ export default function SettingsPage() {
                 />
               </div>
               {/* Match field selector */}
-              <div className="flex-shrink-0">
+              <div className="sm:flex-shrink-0">
                 <select
                   value={matchField}
                   onChange={e => setMatchField(e.target.value)}
-                  className="h-10 mt-0 rounded-xl border border-border bg-slate-800 text-sm text-slate-200 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
+                  className="w-full sm:w-auto h-10 mt-0 rounded-xl border border-border bg-slate-800 text-sm text-slate-200 px-3 focus:outline-none focus:ring-2 focus:ring-primary-500/40"
                 >
                   <option value="all">Anywhere</option>
                   <option value="subject">Subject</option>
                   <option value="sender">Sender</option>
                 </select>
               </div>
-              <Button type="submit" loading={adding} className="flex-shrink-0 mt-0">
+              <Button type="submit" loading={adding} className="sm:flex-shrink-0 mt-0 w-full sm:w-auto">
                 <Plus size={15} /> Add
               </Button>
             </div>
@@ -185,7 +185,7 @@ export default function SettingsPage() {
                   </span>
                   <button
                     onClick={() => handleDelete(rule.id)}
-                    className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-900/20 transition-colors opacity-0 group-hover:opacity-100"
+                    className="p-1.5 rounded-lg text-slate-600 hover:text-red-400 hover:bg-red-900/20 transition-colors sm:opacity-0 sm:group-hover:opacity-100"
                   >
                     <Trash2 size={13} />
                   </button>

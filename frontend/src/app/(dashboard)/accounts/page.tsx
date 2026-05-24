@@ -184,7 +184,7 @@ function RunProgress({ accountEmail, runId, onDone }: {
             <span className="text-xs text-green-500 font-mono">running</span>
           </div>
         </div>
-        <div ref={termRef} className="h-56 overflow-y-auto px-4 py-3 font-mono text-xs leading-5 scroll-smooth space-y-0.5">
+        <div ref={termRef} className="h-56 overflow-y-auto overflow-x-hidden px-4 py-3 font-mono text-xs leading-5 scroll-smooth space-y-0.5">
           {logs.length === 0 && <span className="text-slate-600 animate-pulse">Initialising…</span>}
           {logs.map((l, i) => <div key={i} className={l.color}>{l.text}</div>)}
           {logs.length > 0 && <span className="text-slate-500 animate-pulse ml-0.5">█</span>}
@@ -410,9 +410,9 @@ export default function AccountsPage() {
             <p className="text-xs text-slate-500 bg-slate-800/50 rounded-lg p-3">
               💡 Most providers require an App Password, not your regular password. Generate one in your email security settings.
             </p>
-            <div className="flex gap-3 pt-1">
-              <Button type="submit" loading={connecting}>Connect account</Button>
-              <Button type="button" variant="ghost" onClick={() => setShowImapForm(false)}>Cancel</Button>
+            <div className="flex flex-col sm:flex-row gap-3 pt-1">
+              <Button type="submit" loading={connecting} className="w-full sm:w-auto">Connect account</Button>
+              <Button type="button" variant="ghost" onClick={() => setShowImapForm(false)} className="w-full sm:w-auto">Cancel</Button>
             </div>
           </form>
         )}

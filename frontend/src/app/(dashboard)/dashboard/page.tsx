@@ -147,7 +147,7 @@ export default async function DashboardPage() {
             </div>
           ) : (
             <div className="rounded-2xl border border-border bg-surface overflow-hidden">
-              <div className="grid grid-cols-[1fr_90px_70px_70px_80px] text-[10px] font-bold uppercase tracking-widest text-slate-600 px-5 py-3 border-b border-border bg-slate-900/40">
+              <div className="hidden sm:grid grid-cols-[1fr_90px_70px_70px_80px] text-[10px] font-bold uppercase tracking-widest text-slate-600 px-5 py-3 border-b border-border bg-slate-900/40">
                 <span>Account</span>
                 <span className="text-center">Date</span>
                 <span className="text-right">Deleted</span>
@@ -156,14 +156,14 @@ export default async function DashboardPage() {
               </div>
               {runs.map((run: any) => (
                 <div key={run.id}
-                  className="grid grid-cols-[1fr_90px_70px_70px_80px] items-center px-5 py-3 border-b border-border/40 last:border-0 hover:bg-slate-800/25 transition-colors text-sm">
-                  <span className="text-slate-200 truncate font-medium">{run.email_accounts?.email ?? '—'}</span>
-                  <span className="text-center text-slate-500 text-xs">
+                  className="flex sm:grid sm:grid-cols-[1fr_90px_70px_70px_80px] items-center gap-3 px-4 sm:px-5 py-3 border-b border-border/40 last:border-0 hover:bg-slate-800/25 transition-colors text-sm">
+                  <span className="text-slate-200 truncate font-medium flex-1">{run.email_accounts?.email ?? '—'}</span>
+                  <span className="hidden sm:block text-center text-slate-500 text-xs">
                     {new Date(run.started_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                   </span>
-                  <span className="text-right font-bold text-red-400 tabular-nums">{(run.emails_deleted ?? 0).toLocaleString()}</span>
-                  <span className="text-right text-slate-400 tabular-nums">{(run.emails_kept ?? 0).toLocaleString()}</span>
-                  <span className="text-right">
+                  <span className="font-bold text-red-400 tabular-nums sm:text-right text-xs">{(run.emails_deleted ?? 0).toLocaleString()} <span className="sm:hidden text-slate-600">del</span></span>
+                  <span className="hidden sm:block text-right text-slate-400 tabular-nums">{(run.emails_kept ?? 0).toLocaleString()}</span>
+                  <span className="sm:text-right flex-shrink-0">
                     {run.status === 'completed' ? (
                       <span className="inline-flex items-center gap-1 text-xs text-green-400 font-medium"><CheckCircle size={11} /> Done</span>
                     ) : run.status === 'running' ? (

@@ -87,7 +87,7 @@ export default function HistoryPage() {
             <div key={run.id} className="rounded-2xl border border-border bg-surface overflow-hidden hover:border-slate-600/80 transition-colors">
               {/* Run summary row */}
               <button onClick={() => toggleExpand(run.id)}
-                className="w-full flex items-center gap-5 px-5 py-4 hover:bg-slate-800/30 transition-colors text-left">
+                className="w-full flex items-center gap-3 px-4 sm:px-5 py-4 hover:bg-slate-800/30 transition-colors text-left">
                 {/* Account + date */}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-semibold text-white truncate">
@@ -102,19 +102,19 @@ export default function HistoryPage() {
                 </div>
 
                 {/* Stats */}
-                <div className="flex items-center gap-5 text-sm flex-shrink-0">
+                <div className="flex items-center gap-3 sm:gap-5 text-sm flex-shrink-0">
                   <div className="text-right">
                     <p className="font-bold text-red-400 tabular-nums">{(run.emails_deleted ?? 0).toLocaleString()}</p>
                     <p className="text-xs text-slate-600">deleted</p>
                   </div>
-                  <div className="text-right">
+                  <div className="hidden sm:block text-right">
                     <p className="font-semibold text-slate-300 tabular-nums">{(run.emails_kept ?? 0).toLocaleString()}</p>
                     <p className="text-xs text-slate-600">kept</p>
                   </div>
                   <StatusBadge status={run.status} />
                   {expanded === run.id
-                    ? <ChevronUp size={15} className="text-slate-500" />
-                    : <ChevronDown size={15} className="text-slate-500" />
+                    ? <ChevronUp size={15} className="text-slate-500 flex-shrink-0" />
+                    : <ChevronDown size={15} className="text-slate-500 flex-shrink-0" />
                   }
                 </div>
               </button>
