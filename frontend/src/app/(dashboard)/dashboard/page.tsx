@@ -3,7 +3,7 @@ import Link from 'next/link'
 import {
   Trash2, Play, Mail, Clock,
   ArrowRight, CheckCircle, AlertCircle, Loader2,
-  BarChart3, Shield, Zap, CalendarClock, HardDrive,
+  BarChart3, Shield, Zap, HardDrive,
 } from 'lucide-react'
 import { getProviderIcon } from '@/lib/constants'
 
@@ -77,11 +77,12 @@ export default async function DashboardPage() {
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   const planColors: Record<string, string> = {
-    free:  'bg-slate-700/60 text-slate-300',
-    basic: 'bg-blue-500/15 text-blue-400',
-    pro:   'bg-primary-500/15 text-primary-300',
+    free:     'bg-slate-700/60 text-slate-300',
+    basic:    'bg-blue-500/15 text-blue-400',
+    pro:      'bg-primary-500/15 text-primary-300',
+    business: 'bg-amber-500/15 text-amber-400',
   }
-  const planLabel: Record<string, string> = { free: 'Free', basic: 'Basic', pro: 'Pro' }
+  const planLabel: Record<string, string> = { free: 'Free', basic: 'Basic', pro: 'Pro', business: 'Business' }
 
   return (
     <div className="w-full space-y-6">
@@ -208,13 +209,13 @@ export default async function DashboardPage() {
               <div className="flex justify-between">
                 <span>Emails per run</span>
                 <span className="text-white font-medium">
-                  {plan === 'pro' ? '2,000' : plan === 'basic' ? '500' : '100'}
+                  {plan === 'business' ? 'Unlimited' : plan === 'pro' ? '2,000' : plan === 'basic' ? '500' : '100'}
                 </span>
               </div>
               <div className="flex justify-between">
                 <span>Accounts</span>
                 <span className="text-white font-medium">
-                  {plan === 'pro' ? '5' : plan === 'basic' ? '2' : '1'}
+                  {plan === 'business' ? 'Unlimited' : plan === 'pro' ? '5' : plan === 'basic' ? '2' : '1'}
                 </span>
               </div>
               {plan === 'free' && (
@@ -252,20 +253,6 @@ export default async function DashboardPage() {
                 ))}
               </div>
             )}
-          </div>
-
-          {/* Scheduler info */}
-          <div className="rounded-2xl border border-border bg-surface p-5 space-y-3">
-            <h3 className="text-sm font-semibold text-white flex items-center gap-2">
-              <CalendarClock size={14} className="text-green-400" /> Auto-scheduler
-            </h3>
-            <p className="text-xs text-slate-400 leading-relaxed">
-              GitHub Actions runs a clean automatically every <span className="text-white font-medium">6 hours</span> across all your accounts.
-            </p>
-            <div className="flex items-center gap-2">
-              <div className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
-              <span className="text-xs text-green-400 font-medium">Active</span>
-            </div>
           </div>
 
           {/* Storage recovery card */}
