@@ -208,6 +208,8 @@ class GmailAccount(BaseEmailAccount):
         # Snippet (first ~100 chars of body, pre-extracted by Gmail)
         snippet = msg.get("snippet", "")
 
+        size_bytes = int(msg.get("sizeEstimate", 0) or 0)
+
         return Email(
             id=msg_id,
             account_name=self.account_name,
@@ -218,6 +220,7 @@ class GmailAccount(BaseEmailAccount):
             snippet=snippet,
             labels=labels,
             raw_headers=raw_headers,
+            size_bytes=size_bytes,
         )
 
     @staticmethod

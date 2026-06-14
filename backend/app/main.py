@@ -2,7 +2,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .config import get_settings
-from .routers import auth, accounts, runs, scheduler, settings, waitlist
+from .routers import auth, accounts, runs, scheduler, settings, waitlist, analysis
 
 
 @asynccontextmanager
@@ -28,6 +28,7 @@ app.include_router(runs.router,      prefix="/runs",      tags=["runs"])
 app.include_router(scheduler.router, prefix="/scheduler", tags=["scheduler"])
 app.include_router(settings.router,  prefix="/settings",  tags=["settings"])
 app.include_router(waitlist.router,  prefix="/waitlist",  tags=["waitlist"])
+app.include_router(analysis.router,  prefix="/analysis",  tags=["analysis"])
 
 
 @app.get("/health")

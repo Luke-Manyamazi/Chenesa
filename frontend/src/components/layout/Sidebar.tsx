@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Mail, History, LogOut, Settings } from 'lucide-react'
+import { LayoutDashboard, Mail, History, LogOut, Settings, HardDrive } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Logo from '@/components/ui/Logo'
 import ThemeToggle from '@/components/ui/ThemeToggle'
@@ -9,6 +9,7 @@ import ThemeToggle from '@/components/ui/ThemeToggle'
 const links = [
   { href: '/dashboard', label: 'Overview',  icon: LayoutDashboard },
   { href: '/accounts',  label: 'Accounts',  icon: Mail },
+  { href: '/analysis',  label: 'Storage',   icon: HardDrive },
   { href: '/history',   label: 'History',   icon: History },
   { href: '/settings',  label: 'Settings',  icon: Settings },
 ]

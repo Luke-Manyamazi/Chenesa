@@ -49,4 +49,9 @@ export const api = {
 
   joinWaitlist: (email: string) =>
     authFetch('/waitlist', { method: 'POST', body: JSON.stringify({ email }) }),
+
+  triggerAnalysis: (account_id: string) =>
+    authFetch('/analysis/trigger', { method: 'POST', body: JSON.stringify({ account_id }) }),
+  getLatestAnalysis: (account_id: string) =>
+    authFetch(`/analysis/latest?account_id=${encodeURIComponent(account_id)}`),
 }

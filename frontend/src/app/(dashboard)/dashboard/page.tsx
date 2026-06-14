@@ -1,9 +1,9 @@
 import { createClient } from '@/lib/supabase/server'
 import Link from 'next/link'
 import {
-  Trash2, Play, Mail, Clock, TrendingUp,
+  Trash2, Play, Mail, Clock,
   ArrowRight, CheckCircle, AlertCircle, Loader2,
-  BarChart3, Shield, Zap, CalendarClock,
+  BarChart3, Shield, Zap, CalendarClock, HardDrive,
 } from 'lucide-react'
 import { getProviderIcon } from '@/lib/constants'
 
@@ -38,7 +38,7 @@ export default async function DashboardPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
-  const [profileRes, accountsRes, runsRes] = await Promise.all([
+  const [profileRes, accountsRes, runsRes, analysisRes] = await Promise.all([
     supabase.from('profiles')
       .select('free_runs_used, free_runs_limit, subscription_plan')
       .eq('id', user!.id).single(),
@@ -50,11 +50,18 @@ export default async function DashboardPage() {
       .eq('user_id', user!.id)
       .order('started_at', { ascending: false })
       .limit(20),
+    supabase.from('inbox_analyses')
+      .select('total_size_bytes, recoverable_size_bytes, completed_at')
+      .eq('user_id', user!.id)
+      .eq('status', 'completed')
+      .order('completed_at', { ascending: false })
+      .limit(1),
   ])
 
-  const profile  = profileRes.data
-  const accounts = accountsRes.data ?? []
-  const runs     = runsRes.data ?? []
+  const profile    = profileRes.data
+  const accounts   = accountsRes.data ?? []
+  const runs       = runsRes.data ?? []
+  const latestAnalysis = (analysisRes.data ?? [])[0] ?? null
 
   const plan      = profile?.subscription_plan ?? 'free'
   const runsUsed  = profile?.free_runs_used ?? 0
@@ -260,6 +267,25 @@ export default async function DashboardPage() {
               <span className="text-xs text-green-400 font-medium">Active</span>
             </div>
           </div>
+
+          {/* Storage recovery card */}
+          <Link href="/analysis"
+            className="flex items-center gap-3 rounded-2xl border border-border bg-surface p-4 hover:border-primary-500/40 transition-colors group">
+            <div className="w-9 h-9 rounded-xl bg-primary-500/10 border border-primary-500/20 flex items-center justify-center flex-shrink-0">
+              <HardDrive size={15} className="text-primary-400" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium text-white">Storage analyser</p>
+              {latestAnalysis ? (
+                <p className="text-xs text-slate-500 mt-0.5">
+                  {Math.round((latestAnalysis.recoverable_size_bytes / 1024 / 1024) * 10) / 10} MB recoverable
+                </p>
+              ) : (
+                <p className="text-xs text-slate-500 mt-0.5">Scan your inbox</p>
+              )}
+            </div>
+            <ArrowRight size={14} className="text-slate-600 group-hover:text-primary-400 transition-colors flex-shrink-0" />
+          </Link>
 
           {/* Keep rules shortcut */}
           <Link href="/settings"
