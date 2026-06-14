@@ -1,9 +1,8 @@
 import httpx
-from fastapi import Header, HTTPException
+from fastapi import Depends, Header, HTTPException
 from .config import get_settings
 
 # One shared client — reuses TCP/TLS connections across all requests.
-# Created once at import time, lives for the process lifetime.
 _http = httpx.AsyncClient(
     timeout=httpx.Timeout(connect=5.0, read=8.0, write=5.0, pool=5.0),
     limits=httpx.Limits(max_connections=20, max_keepalive_connections=10),
@@ -32,3 +31,13 @@ async def get_current_user(authorization: str = Header(...)) -> str:
         raise
     except Exception:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
+
+
+async def get_admin_user(user_id: str = Depends(get_current_user)) -> str:
+    """Dependency that verifies the caller has is_admin = true in their profile."""
+    from .db.supabase import get_supabase
+    supabase = get_supabase()
+    row = supabase.table("profiles").select("is_admin").eq("id", user_id).single().execute()
+    if not (row.data or {}).get("is_admin"):
+        raise HTTPException(status_code=403, detail="Admin access required")
+    return user_id

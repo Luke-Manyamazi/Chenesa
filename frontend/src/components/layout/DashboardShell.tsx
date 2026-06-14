@@ -7,9 +7,11 @@ import Logo from '@/components/ui/Logo'
 
 export default function DashboardShell({
   email,
+  isAdmin = false,
   children,
 }: {
   email: string
+  isAdmin?: boolean
   children: React.ReactNode
 }) {
   const [open, setOpen] = useState(false)
@@ -29,7 +31,7 @@ export default function DashboardShell({
 
       {/* ── Desktop sidebar (always visible ≥ md) ── */}
       <div className="hidden md:flex flex-shrink-0">
-        <Sidebar email={email} />
+        <Sidebar email={email} isAdmin={isAdmin} />
       </div>
 
       {/* ── Mobile overlay sidebar ── */}
@@ -42,7 +44,7 @@ export default function DashboardShell({
           />
           {/* Drawer — slides in from left */}
           <div className="relative z-10 flex-shrink-0 animate-in slide-in-from-left-full duration-200">
-            <Sidebar email={email} />
+            <Sidebar email={email} isAdmin={isAdmin} />
           </div>
         </div>
       )}

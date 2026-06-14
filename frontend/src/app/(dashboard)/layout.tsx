@@ -7,8 +7,14 @@ export default async function DashboardLayout({ children }: { children: React.Re
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) redirect('/login')
 
+  const { data: profile } = await supabase
+    .from('profiles')
+    .select('is_admin')
+    .eq('id', user.id)
+    .single()
+
   return (
-    <DashboardShell email={user.email ?? ''}>
+    <DashboardShell email={user.email ?? ''} isAdmin={profile?.is_admin ?? false}>
       {children}
     </DashboardShell>
   )

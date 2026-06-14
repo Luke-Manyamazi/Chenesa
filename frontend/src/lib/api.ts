@@ -57,4 +57,12 @@ export const api = {
 
   undoRun: (run_id: string) =>
     authFetch(`/runs/${run_id}/undo`, { method: 'POST' }),
+
+  // Admin
+  adminOverview: ()                             => authFetch('/admin/overview'),
+  adminUsers:    ()                             => authFetch('/admin/users'),
+  adminSetPlan:  (user_id: string, plan: string) =>
+    authFetch(`/admin/users/${user_id}/plan`, { method: 'PATCH', body: JSON.stringify({ plan }) }),
+  adminWaitlist: ()                             => authFetch('/admin/waitlist'),
+  adminRuns:     ()                             => authFetch('/admin/runs'),
 }

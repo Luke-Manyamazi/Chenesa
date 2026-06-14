@@ -1,7 +1,7 @@
 'use client'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { LayoutDashboard, Mail, History, LogOut, Settings, HardDrive } from 'lucide-react'
+import { LayoutDashboard, Mail, History, LogOut, Settings, HardDrive, ShieldAlert } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import Logo from '@/components/ui/Logo'
 import ThemeToggle from '@/components/ui/ThemeToggle'
@@ -14,7 +14,7 @@ const links = [
   { href: '/settings',  label: 'Settings',  icon: Settings },
 ]
 
-export default function Sidebar({ email }: { email: string }) {
+export default function Sidebar({ email, isAdmin = false }: { email: string; isAdmin?: boolean }) {
   const pathname = usePathname()
   const router   = useRouter()
 
@@ -40,7 +40,7 @@ export default function Sidebar({ email }: { email: string }) {
         <p className="px-3 mb-2 text-[10px] font-semibold uppercase tracking-widest text-slate-600">
           Main
         </p>
-        {links.map(({ href, label, icon: Icon }) => {
+        {[...links, ...(isAdmin ? [{ href: '/admin', label: 'Admin', icon: ShieldAlert }] : [])].map(({ href, label, icon: Icon }) => {
           const active = pathname === href
           return (
             <Link key={href} href={href}
