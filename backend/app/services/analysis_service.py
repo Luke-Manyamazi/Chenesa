@@ -72,7 +72,7 @@ async def run_analysis(user_id: str, account_id: str, analysis_id: str) -> None:
         keep_rules = [(r["keyword"], r["match_field"]) for r in (rules_row.data or [])]
 
         # ── 3. Build Gmail account ────────────────────────────────────────────
-        rate_limiter = RateLimiter(gmail_rps=20, anthropic_rpm=0)
+        rate_limiter = RateLimiter(gmail_rps=20, anthropic_rpm=1)
         decrypted = decrypt(acc["encrypted_token"])
         token_data = json.loads(decrypted)
 
