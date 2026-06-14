@@ -15,7 +15,7 @@ export default function Navbar() {
               Log in
             </Link>
             <Link href="/signup" className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-medium text-white hover:bg-primary-500 transition-colors">
-              Start free
+              Recover storage free
             </Link>
           </div>
         </div>
