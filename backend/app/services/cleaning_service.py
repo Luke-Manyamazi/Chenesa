@@ -1,6 +1,12 @@
 """
-Cleaning service — orchestrates a full email clean for one user+account.
-Imports the existing Email-Automation core code via sys.path.
+Cleaning service — orchestrates the Gmail cleanup pipeline for one user+account.
+
+Pipeline (rules-first architecture):
+  1. Keep rules (user keywords — highest priority, skip all other steps)
+  2. OLD_READ pre-classification (age + read status, no AI)
+  3. Rules engine (headers, sender domains, subject patterns, no AI)
+  4. Claude Smart Cleanup (Pro plan + smart mode only)
+  5. Execute: archive (safe mode) or trash (aggressive / smart mode)
 """
 import asyncio
 import json
@@ -8,154 +14,265 @@ from datetime import datetime, timezone
 
 from loguru import logger
 from src.accounts.gmail import GmailAccount
-from src.accounts.imap import ImapAccount
-from src.utils.rate_limiter import RateLimiter
+from src.classifier.rules_classifier import RulesClassifier
 from src.classifier.claude_classifier import ClaudeClassifier
 from src.cleaner.email_cleaner import EmailCleaner
-from src.utils.models import EmailCategory
-# ──────────────────────────────────────────────────────────────────────────
+from src.utils.models import EmailCategory, ClassificationResult
+from src.utils.rate_limiter import RateLimiter
 
 from ..db.supabase import get_supabase
 from ..services.encryption import decrypt
 from ..config import get_settings
 
 PLAN_LIMITS: dict[str, dict] = {
-    "free":  {"max_emails": 100,   "max_accounts": 1},
-    "basic": {"max_emails": 500,   "max_accounts": 2},
-    "pro":   {"max_emails": 2000,  "max_accounts": 5},
+    "free":     {"max_emails": 100,  "max_accounts": 1,  "allow_claude": False},
+    "basic":    {"max_emails": 500,  "max_accounts": 2,  "allow_claude": False},
+    "pro":      {"max_emails": 2000, "max_accounts": 5,  "allow_claude": True},
+    "business": {"max_emails": 5000, "max_accounts": 20, "allow_claude": True},
 }
 
+VALID_CLEANUP_MODES = {"safe", "aggressive", "smart"}
 
-async def run_for_account(user_id: str, account_id: str, run_id: str) -> None:
+
+async def run_for_account(
+    user_id: str,
+    account_id: str,
+    run_id: str,
+    cleanup_mode: str = "aggressive",
+) -> None:
     supabase = get_supabase()
     settings = get_settings()
 
+    if cleanup_mode not in VALID_CLEANUP_MODES:
+        cleanup_mode = "aggressive"
+
     try:
-        # 1. Fetch account
-        acc_row = supabase.table("email_accounts").select("*").eq("id", account_id).eq("user_id", user_id).single().execute()
+        # ── 1. Fetch account ──────────────────────────────────────────────────
+        acc_row = (
+            supabase.table("email_accounts")
+            .select("*")
+            .eq("id", account_id)
+            .eq("user_id", user_id)
+            .single()
+            .execute()
+        )
         if not acc_row.data:
             raise ValueError(f"Account {account_id} not found for user {user_id}")
         acc = acc_row.data
 
-        # 2. Fetch profile + keep rules in parallel
-        profile_row = supabase.table("profiles").select("subscription_plan, free_runs_used, free_runs_limit").eq("id", user_id).single().execute()
+        if acc["type"] != "gmail":
+            raise ValueError(
+                "This version only supports Gmail accounts. "
+                "Support for additional providers is coming soon."
+            )
+
+        # ── 2. Fetch profile + keep rules ─────────────────────────────────────
+        profile_row = (
+            supabase.table("profiles")
+            .select("subscription_plan, free_runs_used, free_runs_limit, old_read_days")
+            .eq("id", user_id)
+            .single()
+            .execute()
+        )
         profile = profile_row.data or {}
         plan = profile.get("subscription_plan", "free")
         limits = PLAN_LIMITS.get(plan, PLAN_LIMITS["free"])
-        max_emails = limits["max_emails"] or 500
-
-        rules_row = supabase.table("keep_rules").select("keyword, match_field").eq("user_id", user_id).execute()
-        keep_rules = [(r["keyword"], r["match_field"]) for r in (rules_row.data or [])]
-
-        # 3. Build account object — higher IMAP rate for speed (20 req/s ≈ 500 emails in ~25s)
-        rate_limiter = RateLimiter(gmail_rps=20, anthropic_rpm=50)
-        decrypted = decrypt(acc["encrypted_token"])
-
-        if acc["type"] == "gmail":
-            import google.oauth2.credentials
-            token_data = json.loads(decrypted)
-            creds = google.oauth2.credentials.Credentials(
-                token=token_data["token"],
-                refresh_token=token_data.get("refresh_token"),
-                token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
-                client_id=token_data.get("client_id"),
-                client_secret=token_data.get("client_secret"),
-            )
-            email_account = GmailAccount(
-                account_name=acc["email"],
-                email_address=acc["email"],
-                token_file="",
-                credentials_file="",
-                rate_limiter=rate_limiter,
-            )
-            # Monkey-patch to use pre-built credentials
-            email_account._creds = creds  # type: ignore
-            _original_auth = email_account.authenticate
-
-            def _patched_auth():
-                from googleapiclient.discovery import build
-                email_account._service = build("gmail", "v1", credentials=creds)
-                logger.info(f"[{acc['email']}] Gmail authenticated via stored token ✓")
-
-            email_account.authenticate = _patched_auth  # type: ignore
-        else:
-            email_account = ImapAccount(
-                account_name=acc["email"],
-                email_address=acc["email"],
-                app_password=decrypted,
-                rate_limiter=rate_limiter,
-                imap_host=acc.get("imap_host", ""),
-                imap_port=acc.get("imap_port", 993),
-            )
-
-        # 4. Build a minimal config-like object for EmailCleaner
-        # OLD_READ threshold: emails that are read AND older than this many days
-        # are auto-deleted without going through Claude.
-        # 180 days = 6 months — conservative default that avoids nuking
-        # important old emails (bank statements, receipts, etc.)
+        max_emails = limits["max_emails"]
+        allow_claude = limits["allow_claude"]
         old_read_threshold = profile.get("old_read_days") or 180
 
-        class _FakeCfg:
-            anthropic_api_key = settings.anthropic_api_key
-            yahoo_app_password = ""
-            class global_:
-                dry_run = False
-                batch_size = 20
-                max_emails_per_run = max_emails
-                old_read_days = old_read_threshold
-                schedule_interval_hours = 6
-            class rate_limits:
-                gmail_requests_per_second = 5
-                anthropic_requests_per_minute = 50
-            accounts = []
+        rules_row = (
+            supabase.table("keep_rules")
+            .select("keyword, match_field")
+            .eq("user_id", user_id)
+            .execute()
+        )
+        keep_rules = [(r["keyword"], r["match_field"]) for r in (rules_row.data or [])]
 
-        class _FakeAccountCfg:
-            name = acc["email"]
-            type = acc["type"]
-            email = acc["email"]
-            enabled = True
-            old_read_days = old_read_threshold
-            token_file = None
-            credentials_file = None
-            imap_host = acc.get("imap_host", "")
-            imap_port = acc.get("imap_port", 993)
-            app_password = None
-            user_keep_rules = keep_rules  # list of (keyword, match_field)
+        # ── 3. Build Gmail account ────────────────────────────────────────────
+        rate_limiter = RateLimiter(gmail_rps=5, anthropic_rpm=50)
+        decrypted = decrypt(acc["encrypted_token"])
+        token_data = json.loads(decrypted)
 
-        fake_cfg = _FakeCfg()
-        fake_acc_cfg = _FakeAccountCfg()
+        import google.oauth2.credentials
+        creds = google.oauth2.credentials.Credentials(
+            token=token_data["token"],
+            refresh_token=token_data.get("refresh_token"),
+            token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
+            client_id=token_data.get("client_id"),
+            client_secret=token_data.get("client_secret"),
+        )
+        email_account = GmailAccount(
+            account_name=acc["email"],
+            email_address=acc["email"],
+            token_file="",
+            credentials_file="",
+            rate_limiter=rate_limiter,
+        )
 
-        # 5. Run the cleaner — in a thread so the async event loop stays free for polling
-        from src.utils.models import RunStats
+        def _patched_auth():
+            from googleapiclient.discovery import build
+            email_account._service = build("gmail", "v1", credentials=creds)
+            logger.info(f"[{acc['email']}] Gmail authenticated via stored token ✓")
 
-        def _run_sync():
-            stats_obj = RunStats(account=acc["email"])
-            cleaner = EmailCleaner(fake_cfg, dry_run=False)  # type: ignore
-            cleaner._process_account(email_account, fake_acc_cfg, stats_obj)
+        email_account.authenticate = _patched_auth  # type: ignore
+
+        # ── 4. Run pipeline in thread (keeps async event loop free) ──────────
+        def _run_sync() -> dict:
+            email_account.authenticate()
+
+            emails = email_account.fetch_emails(max_count=max_emails)
+            fetched = len(emails)
+
+            if not emails:
+                email_account.close()
+                return {"fetched": 0, "deleted": 0, "kept": 0, "errors": 0}
+
+            # Step A: Keep rules (user keywords — skip everything else)
+            force_kept_count = 0
+            if keep_rules:
+                emails, force_kept_emails = EmailCleaner._apply_keep_rules(emails, keep_rules)
+                force_kept_count = len(force_kept_emails)
+                if force_kept_emails:
+                    logger.info(
+                        f"[{acc['email']}] Keep rules protected "
+                        f"{force_kept_count} email(s)"
+                    )
+
+            # Step B: OLD_READ pre-classification (deterministic, no AI)
+            old_read_results: list[ClassificationResult] = []
+            remaining = []
+            now = datetime.utcnow()
+            for email in emails:
+                if not email.date:
+                    remaining.append(email)
+                    continue
+                age_days = (now - email.date.replace(tzinfo=None)).days
+                if (
+                    email.is_read
+                    and age_days >= old_read_threshold
+                    and not EmailCleaner._is_payslip(email)
+                ):
+                    old_read_results.append(
+                        ClassificationResult(
+                            email_id=email.id,
+                            category=EmailCategory.OLD_READ,
+                            confidence="high",
+                            reasoning=(
+                                f"Read email {age_days} days old "
+                                f"(threshold: {old_read_threshold} days)"
+                            ),
+                            action_taken="pending_delete",
+                        )
+                    )
+                else:
+                    remaining.append(email)
+
+            logger.info(
+                f"[{acc['email']}] OLD_READ: {len(old_read_results)} emails, "
+                f"{len(remaining)} remaining for rules engine"
+            )
+
+            # Step C: Rules engine (headers, domains, patterns)
+            rules_clf = RulesClassifier()
+            rules_results, unmatched = rules_clf.classify_batch(
+                remaining, old_read_threshold_days=old_read_threshold
+            )
+
+            # Step D: Claude Smart Cleanup (Pro + smart mode only)
+            ai_results: list[ClassificationResult] = []
+            if allow_claude and cleanup_mode == "smart" and unmatched:
+                logger.info(
+                    f"[{acc['email']}] Smart Cleanup: sending "
+                    f"{len(unmatched)} emails to Claude"
+                )
+                claude_clf = ClaudeClassifier(
+                    api_key=settings.anthropic_api_key,
+                    rate_limiter=rate_limiter,
+                )
+                for i in range(0, len(unmatched), 20):
+                    batch = unmatched[i : i + 20]
+                    ai_results.extend(
+                        claude_clf.classify_batch(batch, old_read_threshold)
+                    )
+            else:
+                # Rules could not resolve these — keep them (safe default)
+                for email in unmatched:
+                    ai_results.append(
+                        ClassificationResult(
+                            email_id=email.id,
+                            category=EmailCategory.KEEP,
+                            confidence="medium",
+                            reasoning="No rule matched — kept for safety",
+                            action_taken="kept",
+                        )
+                    )
+
+            # ── Step E: Execute cleanup actions ───────────────────────────────
+            all_results = old_read_results + rules_results + ai_results
+            actioned = 0
+            errors = 0
+            kept_count = force_kept_count + sum(
+                1 for r in all_results if r.action_taken == "kept"
+            )
+
+            if cleanup_mode == "safe":
+                # Archive newsletters + social (move out of INBOX, fully reversible).
+                # Trash confirmed spam (still recoverable from Trash for 30 days).
+                # Leave OLD_READ alone — safe mode never touches old emails.
+                for r in all_results:
+                    if r.category in (EmailCategory.MARKETING, EmailCategory.SOCIAL):
+                        if email_account.archive_email(r.email_id):
+                            actioned += 1
+                        else:
+                            errors += 1
+                    elif r.category == EmailCategory.SPAM:
+                        if email_account.delete_email(r.email_id):
+                            actioned += 1
+                        else:
+                            errors += 1
+            else:
+                # Aggressive / Smart: trash all emails flagged for deletion
+                for r in all_results:
+                    if r.action_taken == "pending_delete":
+                        if email_account.delete_email(r.email_id):
+                            actioned += 1
+                        else:
+                            errors += 1
+
             email_account.close()
-            return stats_obj
+            logger.info(
+                f"[{acc['email']}] Pipeline done — "
+                f"fetched={fetched}, actioned={actioned}, "
+                f"kept={kept_count}, errors={errors}"
+            )
+            return {
+                "fetched": fetched,
+                "deleted": actioned,
+                "kept": kept_count,
+                "errors": errors,
+            }
 
         stats = await asyncio.to_thread(_run_sync)
 
-        # 6. We can't easily intercept per-email results from _process_account
-        # so we just record the aggregate stats. For detailed per-email records,
-        # a future refactor of EmailCleaner to return results would help.
-        # For now, update the run row with totals.
+        # ── 5. Persist results ────────────────────────────────────────────────
         supabase.table("cleaning_runs").update({
             "completed_at": datetime.now(timezone.utc).isoformat(),
-            "emails_fetched": stats.fetched,
-            "emails_deleted": stats.deleted,
-            "emails_kept": stats.kept,
+            "emails_fetched": stats["fetched"],
+            "emails_deleted": stats["deleted"],
+            "emails_kept": stats["kept"],
             "status": "completed",
         }).eq("id", run_id).execute()
 
-        # 7. Increment free_runs_used if on free plan
         if plan == "free":
             supabase.table("profiles").update({
                 "free_runs_used": (profile.get("free_runs_used", 0) or 0) + 1
             }).eq("id", user_id).execute()
 
-        logger.info(f"Run {run_id} completed — {stats.deleted} deleted, {stats.kept} kept")
+        logger.info(
+            f"Run {run_id} completed — "
+            f"{stats['deleted']} actioned, {stats['kept']} kept"
+        )
 
     except Exception as exc:
         logger.error(f"Run {run_id} failed: {exc}", exc_info=True)

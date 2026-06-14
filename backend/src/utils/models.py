@@ -34,7 +34,8 @@ class Email:
     date: datetime
     is_read: bool
     snippet: str                     # First ~200 chars — no full body needed
-    labels: list = field(default_factory=list)  # Gmail labels or IMAP flags
+    labels: list = field(default_factory=list)   # Gmail labels or IMAP flags
+    raw_headers: dict = field(default_factory=dict)  # Raw email headers (List-Unsubscribe, Precedence, etc.)
 
 
 @dataclass

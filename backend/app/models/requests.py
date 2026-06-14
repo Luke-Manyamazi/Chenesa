@@ -11,6 +11,7 @@ class ConnectImapRequest(BaseModel):
 
 class TriggerRunRequest(BaseModel):
     account_id: str
+    cleanup_mode: str = "aggressive"  # "safe" | "aggressive" | "smart"
 
 
 class ToggleAccountRequest(BaseModel):

@@ -32,7 +32,8 @@ export const api = {
     authFetch('/accounts/imap', { method: 'POST', body: JSON.stringify(data) }),
   getGmailUrl: ()                              => authFetch('/auth/gmail/url'),
 
-  triggerRun: (account_id: string)             => authFetch('/runs', { method: 'POST', body: JSON.stringify({ account_id }) }),
+  triggerRun: (account_id: string, cleanup_mode: string = 'aggressive') =>
+    authFetch('/runs', { method: 'POST', body: JSON.stringify({ account_id, cleanup_mode }) }),
   getRuns: ()                                  => authFetch('/runs'),
   getRunDetail: (id: string)                   => authFetch(`/runs/${id}`),
 

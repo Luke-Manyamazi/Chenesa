@@ -175,7 +175,12 @@ class GmailAccount(BaseEmailAccount):
                     userId="me",
                     id=msg_id,
                     format="metadata",
-                    metadataHeaders=["From", "Subject", "Date"],
+                    metadataHeaders=[
+                        "From", "Subject", "Date",
+                        "List-Unsubscribe", "List-Unsubscribe-Post",
+                        "Precedence", "X-Mailer",
+                        "X-Campaign-Id", "X-CampaignId",
+                    ],
                 )
                 .execute()
             )
@@ -183,15 +188,15 @@ class GmailAccount(BaseEmailAccount):
             logger.warning(f"[{self.account_name}] Failed to fetch message {msg_id}: {exc}")
             return None
 
-        # Parse headers
-        headers = {
+        # Parse headers — keep all for rules classifier, extract key fields
+        raw_headers = {
             h["name"].lower(): h["value"]
             for h in msg.get("payload", {}).get("headers", [])
         }
 
-        subject = headers.get("subject", "(no subject)")
-        sender = headers.get("from", "(unknown sender)")
-        date_str = headers.get("date", "")
+        subject = raw_headers.get("subject", "(no subject)")
+        sender = raw_headers.get("from", "(unknown sender)")
+        date_str = raw_headers.get("date", "")
 
         # Parse date
         email_date = self._parse_date(date_str, msg.get("internalDate"))
@@ -212,6 +217,7 @@ class GmailAccount(BaseEmailAccount):
             is_read=is_read,
             snippet=snippet,
             labels=labels,
+            raw_headers=raw_headers,
         )
 
     @staticmethod
@@ -261,6 +267,28 @@ class GmailAccount(BaseEmailAccount):
             return True
         except Exception as exc:
             logger.error(f"[{self.account_name}] Failed to trash {email_id}: {exc}")
+            return False
+
+    def archive_email(self, email_id: str) -> bool:
+        """
+        Archive an email by removing the INBOX label (moves to All Mail).
+        Recoverable at any time — does not trash or delete.
+        Used for Safe Cleanup mode.
+        """
+        if not self._service:
+            logger.error(f"[{self.account_name}] Not authenticated — cannot archive")
+            return False
+
+        try:
+            self.rate_limiter.acquire("gmail")
+            self._service.users().messages().modify(
+                userId="me",
+                id=email_id,
+                body={"removeLabelIds": ["INBOX"]},
+            ).execute()
+            return True
+        except Exception as exc:
+            logger.error(f"[{self.account_name}] Failed to archive {email_id}: {exc}")
             return False
 
     def close(self) -> None:
