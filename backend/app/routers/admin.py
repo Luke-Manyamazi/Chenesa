@@ -100,13 +100,10 @@ async def set_user_plan(
         raise HTTPException(status_code=400, detail=f"Invalid plan. Must be one of: {sorted(VALID_PLANS)}")
 
     supabase = get_supabase()
-    res = supabase.table("profiles") \
+    supabase.table("profiles") \
         .update({"subscription_plan": body.plan}) \
         .eq("id", user_id) \
         .execute()
-
-    if not res.data:
-        raise HTTPException(status_code=404, detail="User not found")
 
     return {"user_id": user_id, "plan": body.plan}
 
