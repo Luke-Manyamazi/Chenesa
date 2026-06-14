@@ -294,6 +294,38 @@ class GmailAccount(BaseEmailAccount):
             logger.error(f"[{self.account_name}] Failed to archive {email_id}: {exc}")
             return False
 
+    def untrash_email(self, email_id: str) -> bool:
+        """Move a trashed email back to inbox (undo trash)."""
+        if not self._service:
+            logger.error(f"[{self.account_name}] Not authenticated — cannot untrash")
+            return False
+        try:
+            self.rate_limiter.acquire("gmail")
+            self._service.users().messages().untrash(
+                userId="me", id=email_id
+            ).execute()
+            return True
+        except Exception as exc:
+            logger.error(f"[{self.account_name}] Failed to untrash {email_id}: {exc}")
+            return False
+
+    def restore_to_inbox(self, email_id: str) -> bool:
+        """Add INBOX label back to an archived email (undo archive)."""
+        if not self._service:
+            logger.error(f"[{self.account_name}] Not authenticated — cannot restore")
+            return False
+        try:
+            self.rate_limiter.acquire("gmail")
+            self._service.users().messages().modify(
+                userId="me",
+                id=email_id,
+                body={"addLabelIds": ["INBOX"]},
+            ).execute()
+            return True
+        except Exception as exc:
+            logger.error(f"[{self.account_name}] Failed to restore {email_id}: {exc}")
+            return False
+
     def close(self) -> None:
         """Nothing to close for Gmail API."""
         pass

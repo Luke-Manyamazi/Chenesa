@@ -21,13 +21,14 @@ class ProfilePrefsIn(BaseModel):
 async def get_profile_prefs(user_id: str = Depends(get_current_user)):
     supabase = get_supabase()
     row = supabase.table("profiles") \
-        .select("old_read_days, free_runs_used, free_runs_limit") \
+        .select("old_read_days, free_runs_used, free_runs_limit, subscription_plan") \
         .eq("id", user_id).single().execute()
     data = row.data or {}
     return {
-        "old_read_days":   data.get("old_read_days",   180),
-        "free_runs_used":  data.get("free_runs_used",  0),
-        "free_runs_limit": data.get("free_runs_limit", 1),
+        "old_read_days":       data.get("old_read_days",      180),
+        "free_runs_used":      data.get("free_runs_used",     0),
+        "free_runs_limit":     data.get("free_runs_limit",    1),
+        "subscription_plan":   data.get("subscription_plan",  "free"),
     }
 
 

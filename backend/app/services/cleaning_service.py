@@ -7,6 +7,7 @@ Pipeline (rules-first architecture):
   3. Rules engine (headers, sender domains, subject patterns, no AI)
   4. Claude Smart Cleanup (Pro plan + smart mode only)
   5. Execute: archive (safe mode) or trash (aggressive / smart mode)
+  6. Persist per-email log to deleted_emails table (enables history + undo)
 """
 import asyncio
 import json
@@ -17,7 +18,7 @@ from src.accounts.gmail import GmailAccount
 from src.classifier.rules_classifier import RulesClassifier
 from src.classifier.claude_classifier import ClaudeClassifier
 from src.cleaner.email_cleaner import EmailCleaner
-from src.utils.models import EmailCategory, ClassificationResult
+from src.utils.models import Email, EmailCategory, ClassificationResult
 from src.utils.rate_limiter import RateLimiter
 
 from ..db.supabase import get_supabase
@@ -32,6 +33,8 @@ PLAN_LIMITS: dict[str, dict] = {
 }
 
 VALID_CLEANUP_MODES = {"safe", "aggressive", "smart"}
+
+_BATCH_INSERT_SIZE = 500  # Max rows per Supabase insert call
 
 
 async def run_for_account(
@@ -121,12 +124,16 @@ async def run_for_account(
         def _run_sync() -> dict:
             email_account.authenticate()
 
-            emails = email_account.fetch_emails(max_count=max_emails)
-            fetched = len(emails)
+            all_fetched: list[Email] = email_account.fetch_emails(max_count=max_emails)
+            fetched = len(all_fetched)
+            # Build lookup map for subject/sender when writing deleted_emails log
+            email_map: dict[str, Email] = {e.id: e for e in all_fetched}
 
-            if not emails:
+            if not all_fetched:
                 email_account.close()
-                return {"fetched": 0, "deleted": 0, "kept": 0, "errors": 0}
+                return {"fetched": 0, "deleted": 0, "kept": 0, "errors": 0, "actioned_records": []}
+
+            emails = all_fetched[:]
 
             # Step A: Keep rules (user keywords — skip everything else)
             force_kept_count = 0
@@ -196,7 +203,6 @@ async def run_for_account(
                         claude_clf.classify_batch(batch, old_read_threshold)
                     )
             else:
-                # Rules could not resolve these — keep them (safe default)
                 for email in unmatched:
                     ai_results.append(
                         ClassificationResult(
@@ -208,27 +214,30 @@ async def run_for_account(
                         )
                     )
 
-            # ── Step E: Execute cleanup actions ───────────────────────────────
+            # ── Step E: Execute cleanup + track per-email actions ─────────────
             all_results = old_read_results + rules_results + ai_results
             actioned = 0
             errors = 0
             kept_count = force_kept_count + sum(
                 1 for r in all_results if r.action_taken == "kept"
             )
+            actioned_records: list[dict] = []
 
             if cleanup_mode == "safe":
-                # Archive newsletters + social (move out of INBOX, fully reversible).
-                # Trash confirmed spam (still recoverable from Trash for 30 days).
-                # Leave OLD_READ alone — safe mode never touches old emails.
+                # Archive newsletters + social (fully reversible).
+                # Trash confirmed spam (30-day recovery window).
+                # Leave OLD_READ alone in safe mode.
                 for r in all_results:
                     if r.category in (EmailCategory.MARKETING, EmailCategory.SOCIAL):
                         if email_account.archive_email(r.email_id):
                             actioned += 1
+                            actioned_records.append({"result": r, "action": "archived"})
                         else:
                             errors += 1
                     elif r.category == EmailCategory.SPAM:
                         if email_account.delete_email(r.email_id):
                             actioned += 1
+                            actioned_records.append({"result": r, "action": "trashed"})
                         else:
                             errors += 1
             else:
@@ -237,6 +246,7 @@ async def run_for_account(
                     if r.action_taken == "pending_delete":
                         if email_account.delete_email(r.email_id):
                             actioned += 1
+                            actioned_records.append({"result": r, "action": "trashed"})
                         else:
                             errors += 1
 
@@ -251,11 +261,13 @@ async def run_for_account(
                 "deleted": actioned,
                 "kept": kept_count,
                 "errors": errors,
+                "actioned_records": actioned_records,
+                "email_map": email_map,
             }
 
         stats = await asyncio.to_thread(_run_sync)
 
-        # ── 5. Persist results ────────────────────────────────────────────────
+        # ── 5. Persist aggregate results ──────────────────────────────────────
         supabase.table("cleaning_runs").update({
             "completed_at": datetime.now(timezone.utc).isoformat(),
             "emails_fetched": stats["fetched"],
@@ -268,6 +280,36 @@ async def run_for_account(
             supabase.table("profiles").update({
                 "free_runs_used": (profile.get("free_runs_used", 0) or 0) + 1
             }).eq("id", user_id).execute()
+
+        # ── 6. Persist per-email log to deleted_emails ────────────────────────
+        actioned_records: list[dict] = stats.get("actioned_records", [])
+        email_map: dict[str, Email] = stats.get("email_map", {})
+
+        if actioned_records:
+            rows = []
+            for rec in actioned_records:
+                r: ClassificationResult = rec["result"]
+                em: Email | None = email_map.get(r.email_id)
+                rows.append({
+                    "run_id":     run_id,
+                    "user_id":    user_id,
+                    "account_id": account_id,
+                    "email_id":   r.email_id,
+                    "subject":    em.subject if em else None,
+                    "sender":     em.sender if em else None,
+                    "category":   r.category.value,
+                    "confidence": r.confidence,
+                    "reasoning":  r.reasoning,
+                    "action":     rec["action"],
+                })
+
+            # Batch insert in chunks to stay within request size limits
+            for i in range(0, len(rows), _BATCH_INSERT_SIZE):
+                supabase.table("deleted_emails").insert(rows[i : i + _BATCH_INSERT_SIZE]).execute()
+
+            logger.info(
+                f"Run {run_id} — logged {len(rows)} deleted_emails records"
+            )
 
         logger.info(
             f"Run {run_id} completed — "

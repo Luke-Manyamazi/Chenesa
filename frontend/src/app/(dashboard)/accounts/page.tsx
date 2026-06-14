@@ -7,8 +7,8 @@ import { getProviderIcon } from '@/lib/constants'
 
 type Account    = { id: string; email: string; type: string; enabled: boolean; created_at: string }
 type RunResult  = { status: 'completed' | 'failed'; emails_deleted: number; emails_kept: number; error_message?: string }
-type Profile    = { free_runs_used: number; free_runs_limit: number }
-type CleanupMode = 'safe' | 'aggressive'
+type Profile    = { free_runs_used: number; free_runs_limit: number; subscription_plan: string }
+type CleanupMode = 'safe' | 'aggressive' | 'smart'
 
 // ── Fake terminal lines ───────────────────────────────────────────────────────
 const JUNK_LINES = [
@@ -45,7 +45,7 @@ function buildScript(email: string, mode: CleanupMode) {
   const count    = Math.floor(Math.random() * 800) + 400
   const oldRead  = Math.floor(count * 0.35)
   const shuffled = [...JUNK_LINES, ...KEEP_LINES].sort(() => Math.random() - 0.4).slice(0, 16)
-  const modeLabel = mode === 'safe' ? 'Safe (archive)' : 'Aggressive (delete)'
+  const modeLabel = mode === 'safe' ? 'Safe (archive)' : mode === 'smart' ? 'Smart AI (Claude)' : 'Aggressive (delete)'
 
   return [
     { text: '$ Chenesa Inbox Recovery',                                          color: 'text-primary-400', delay: 0 },
@@ -58,6 +58,7 @@ function buildScript(email: string, mode: CleanupMode) {
     { text: `${ts(6)}  Running rules engine (headers · domains · patterns)…`,    color: 'text-slate-300',   delay: 5400 },
     { text: `${ts(7)}  Mode: ${modeLabel}`,                                      color: 'text-primary-400', delay: 6000 },
     { text: `${ts(8)}  ────────────────────────────────`,                        color: 'text-slate-600',   delay: 6400 },
+    ...(mode === 'smart' ? [{ text: `${ts(8)}  🤖 Sending unmatched emails to Claude AI…`, color: 'text-primary-400', delay: 6600 }] : []),
     ...shuffled.map((line, i) => ({
       text:  `${ts(8 + i * 0.8)}  ${line}`,
       color: line.startsWith('🗑') ? 'text-red-400' : 'text-green-400',
@@ -356,13 +357,14 @@ export default function AccountsPage() {
   const [error,      setError]      = useState('')
 
   const runsExhausted = profile !== null && profile.free_runs_used >= profile.free_runs_limit
+  const isPro = profile?.subscription_plan === 'pro' || profile?.subscription_plan === 'business'
 
   const load = async () => {
     setLoading(true)
     try {
       const [accs, prefs] = await Promise.all([api.getAccounts(), api.getProfilePrefs()])
       setAccounts(accs)
-      setProfile({ free_runs_used: prefs.free_runs_used, free_runs_limit: prefs.free_runs_limit })
+      setProfile({ free_runs_used: prefs.free_runs_used, free_runs_limit: prefs.free_runs_limit, subscription_plan: prefs.subscription_plan ?? 'free' })
     } catch (e: any) { setError(e.message) }
     setLoading(false)
   }
@@ -386,7 +388,7 @@ export default function AccountsPage() {
     setRunResult({ email, result })
     try {
       const prefs = await api.getProfilePrefs()
-      setProfile({ free_runs_used: prefs.free_runs_used, free_runs_limit: prefs.free_runs_limit })
+      setProfile({ free_runs_used: prefs.free_runs_used, free_runs_limit: prefs.free_runs_limit, subscription_plan: prefs.subscription_plan ?? 'free' })
     } catch {}
   }
 
@@ -498,13 +500,22 @@ export default function AccountsPage() {
                             {m.icon} {m.label}
                           </button>
                         ))}
-                        {/* Smart Cleanup — Pro teaser */}
+                        {/* Smart Cleanup — enabled for Pro, teaser for free */}
                         <button
-                          disabled
-                          title="AI-powered Smart Cleanup — coming with Pro plan"
-                          className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-md bg-slate-800/50 text-slate-600 cursor-not-allowed"
+                          disabled={!isPro || isRunning}
+                          title={isPro ? 'AI Smart Cleanup — Claude classifies what rules can\'t decide' : 'Requires Pro plan'}
+                          onClick={() => isPro && setModes(prev => ({ ...prev, [acc.id]: 'smart' }))}
+                          className={`flex items-center gap-1 text-xs px-2 py-0.5 rounded-md transition-all duration-150 ${
+                            mode === 'smart' && isPro
+                              ? 'bg-primary-600/80 text-white shadow-sm shadow-primary-900/40'
+                              : isPro
+                                ? 'bg-slate-800 text-slate-400 hover:text-slate-200'
+                                : 'bg-slate-800/50 text-slate-600 cursor-not-allowed'
+                          } disabled:opacity-40 disabled:cursor-not-allowed`}
                         >
-                          <Sparkles size={10} /> Smart <span className="text-[10px] ml-0.5 text-primary-600">Pro</span>
+                          <Sparkles size={10} />
+                          {' '}Smart
+                          {!isPro && <span className="text-[10px] ml-0.5 text-primary-600">Pro</span>}
                         </button>
                       </div>
                     )}

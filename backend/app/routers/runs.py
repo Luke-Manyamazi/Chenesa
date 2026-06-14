@@ -1,9 +1,12 @@
+import asyncio
+import json
 import uuid
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException, BackgroundTasks
 from ..dependencies import get_current_user
 from ..db.supabase import get_supabase
 from ..services.cleaning_service import run_for_account
+from ..services.encryption import decrypt
 from ..models.requests import TriggerRunRequest
 from ..models.responses import RunOut, RunDetailOut
 
@@ -150,3 +153,85 @@ async def get_run(run_id: str, user_id: str = Depends(get_current_user)):
         error_message=r.get("error_message"),
         deleted_emails=emails.data or [],
     )
+
+
+@router.post("/{run_id}/undo")
+async def undo_run(run_id: str, user_id: str = Depends(get_current_user)):
+    """Restore emails from a completed run back to inbox / un-archive them."""
+    supabase = get_supabase()
+
+    run = (
+        supabase.table("cleaning_runs")
+        .select("*, email_accounts(*)")
+        .eq("id", run_id)
+        .eq("user_id", user_id)
+        .single()
+        .execute()
+    )
+    if not run.data:
+        raise HTTPException(status_code=404, detail="Run not found")
+    if run.data["status"] != "completed":
+        raise HTTPException(status_code=400, detail="Only completed runs can be undone")
+
+    items = (
+        supabase.table("deleted_emails")
+        .select("email_id, action")
+        .eq("run_id", run_id)
+        .execute()
+    )
+    if not (items.data):
+        raise HTTPException(status_code=400, detail="No email log found for this run — cannot undo")
+
+    # Rebuild Gmail credentials
+    acc = run.data["email_accounts"]
+    decrypted = decrypt(acc["encrypted_token"])
+    token_data = json.loads(decrypted)
+
+    import google.oauth2.credentials
+    from googleapiclient.discovery import build
+    from src.utils.rate_limiter import RateLimiter
+    from src.accounts.gmail import GmailAccount
+
+    creds = google.oauth2.credentials.Credentials(
+        token=token_data["token"],
+        refresh_token=token_data.get("refresh_token"),
+        token_uri=token_data.get("token_uri", "https://oauth2.googleapis.com/token"),
+        client_id=token_data.get("client_id"),
+        client_secret=token_data.get("client_secret"),
+    )
+    rate_limiter = RateLimiter(gmail_rps=10, anthropic_rpm=1)
+    email_account = GmailAccount(
+        account_name=acc["email"],
+        email_address=acc["email"],
+        token_file="",
+        credentials_file="",
+        rate_limiter=rate_limiter,
+    )
+
+    def _patched_auth():
+        email_account._service = build("gmail", "v1", credentials=creds)
+
+    email_account.authenticate = _patched_auth  # type: ignore
+
+    snapshot = items.data  # capture for thread
+
+    def _do_undo() -> dict:
+        email_account.authenticate()
+        restored = 0
+        errors = 0
+        for item in snapshot:
+            if item["action"] == "trashed":
+                if email_account.untrash_email(item["email_id"]):
+                    restored += 1
+                else:
+                    errors += 1
+            elif item["action"] == "archived":
+                if email_account.restore_to_inbox(item["email_id"]):
+                    restored += 1
+                else:
+                    errors += 1
+        email_account.close()
+        return {"restored": restored, "errors": errors}
+
+    result = await asyncio.to_thread(_do_undo)
+    return result

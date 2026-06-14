@@ -54,4 +54,7 @@ export const api = {
     authFetch('/analysis/trigger', { method: 'POST', body: JSON.stringify({ account_id }) }),
   getLatestAnalysis: (account_id: string) =>
     authFetch(`/analysis/latest?account_id=${encodeURIComponent(account_id)}`),
+
+  undoRun: (run_id: string) =>
+    authFetch(`/runs/${run_id}/undo`, { method: 'POST' }),
 }
