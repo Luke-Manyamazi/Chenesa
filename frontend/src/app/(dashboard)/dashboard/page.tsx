@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/admin'
 import Link from 'next/link'
 import {
   Trash2, Play, Mail, Clock,
@@ -38,19 +39,21 @@ export default async function DashboardPage() {
   const supabase = createClient()
   const { data: { user } } = await supabase.auth.getUser()
 
+  const adminSupabase = createAdminClient()
+
   const [profileRes, accountsRes, runsRes, analysisRes] = await Promise.all([
-    supabase.from('profiles')
+    adminSupabase.from('profiles')
       .select('free_runs_used, free_runs_limit, subscription_plan')
       .eq('id', user!.id).single(),
-    supabase.from('email_accounts')
+    adminSupabase.from('email_accounts')
       .select('id, email, type, enabled')
       .eq('user_id', user!.id).eq('enabled', true),
-    supabase.from('cleaning_runs')
+    adminSupabase.from('cleaning_runs')
       .select('*, email_accounts(email)')
       .eq('user_id', user!.id)
       .order('started_at', { ascending: false })
       .limit(20),
-    supabase.from('inbox_analyses')
+    adminSupabase.from('inbox_analyses')
       .select('total_size_bytes, recoverable_size_bytes, completed_at')
       .eq('user_id', user!.id)
       .eq('status', 'completed')
