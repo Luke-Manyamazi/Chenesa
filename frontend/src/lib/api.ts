@@ -58,6 +58,12 @@ export const api = {
   undoRun: (run_id: string) =>
     authFetch(`/runs/${run_id}/undo`, { method: 'POST' }),
 
+  // Billing
+  checkoutBilling: (plan: string) =>
+    authFetch('/billing/checkout', { method: 'POST', body: JSON.stringify({ plan }) }),
+  getSubscription: () => authFetch('/billing/subscription'),
+  cancelSubscription: () => authFetch('/billing/cancel', { method: 'POST' }),
+
   // Admin
   adminOverview: ()                             => authFetch('/admin/overview'),
   adminUsers:    ()                             => authFetch('/admin/users'),

@@ -11,8 +11,14 @@ class Settings(BaseSettings):
     google_client_secret: str = ""
     google_redirect_uri: str = ""
     encryption_key: str
-    scheduler_secret: str
+    scheduler_secret: str = ""
     frontend_url: str = "http://localhost:3000"
+
+    # PayFast (South African payment gateway)
+    payfast_merchant_id:  str  = ""
+    payfast_merchant_key: str  = ""
+    payfast_passphrase:   str  = ""
+    payfast_sandbox:      bool = True
 
     class Config:
         env_file = ".env"
