@@ -23,7 +23,7 @@ CREATE POLICY "Admins can read all profiles" ON profiles
     )
   );
 
--- 4. Grant the app's admin user (it@torgaoptical.co.za) admin access
+-- 4. Grant the app's admin user (admin@camluk.co.za) admin access
 UPDATE profiles
   SET is_admin = TRUE
-  WHERE email = 'it@torgaoptical.co.za';
+  WHERE email = 'admin@camluk.co.za';
