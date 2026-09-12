@@ -1,63 +1,86 @@
-# Chenesa — AI Email Cleaner SaaS
+# Chenesa
 
-Automatically cleans any email inbox using AI. Works with Gmail, Outlook, Yahoo, iCloud, AOL, Zoho, and any IMAP provider.
+> AI-powered email cleanup for connected inboxes.
 
-## Stack
-| Layer | Tech | Host |
-|---|---|---|
-| Frontend | Next.js 14 + Tailwind | Vercel |
-| Backend | FastAPI (Python) | Railway |
-| Database | PostgreSQL + Auth | Supabase |
-| Scheduler | GitHub Actions cron | GitHub |
+Chenesa is a SaaS application that uses AI-assisted processing to help users clean and organize email across multiple providers. The project combines a Next.js frontend, a Python API, PostgreSQL-backed data services, scheduled background processing, and encrypted provider credentials.
 
-## Monorepo structure
+## Highlights
+
+- Connects supported Gmail, Outlook, Yahoo, iCloud, AOL, Zoho, and IMAP accounts
+- AI-assisted email cleanup workflows
+- Secure account and provider configuration
+- Scheduled background processing
+- Subscription-oriented product model with free and paid plans
+- Separate frontend and backend deployments
+
+## Architecture
+
+```text
+Next.js frontend
+      ↓
+FastAPI backend
+      ↓
+PostgreSQL / Supabase
+      ↓
+Email providers + AI processing
+
+GitHub Actions → scheduled backend jobs
 ```
+
+## Repository structure
+
+```text
 Chenesa/
-├── frontend/        ← Next.js web app
-├── backend/         ← FastAPI API server
-├── supabase/        ← DB migrations
-└── .github/         ← Scheduler cron job
+├── frontend/        # Next.js web application
+├── backend/         # FastAPI API server
+├── supabase/        # Database migrations
+└── .github/         # Automation and scheduled jobs
 ```
 
-## Setup
+## Technology
 
-### 1. Supabase
-1. Create project at supabase.com
-2. Run migrations in order: SQL Editor → paste each file from `supabase/migrations/`
-3. Copy your Project URL and anon key
+| Area | Technology |
+|---|---|
+| Web application | Next.js 14, React, Tailwind CSS |
+| API | Python, FastAPI |
+| Database | PostgreSQL, Supabase |
+| Background jobs | GitHub Actions |
+| Hosting | Vercel, Railway |
+| Security | Encrypted provider credentials |
 
-### 2. Frontend (Vercel)
+## Local development
+
+### Frontend
+
 ```bash
 cd frontend
-cp .env.local.example .env.local
-# Fill in NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
 npm install
 npm run dev
 ```
-Deploy: connect GitHub repo to Vercel → auto-deploys on push.
 
-### 3. Backend (Railway)
+Configure the required frontend environment values using the included example environment file.
+
+### Backend
+
 ```bash
 cd backend
-cp .env.example .env
-# Fill in all env vars
-```
-Deploy: connect GitHub repo to Railway → uses Dockerfile automatically.
-
-Generate encryption key:
-```python
-from cryptography.fernet import Fernet
-print(Fernet.generate_key().decode())
 ```
 
-### 4. GitHub Actions Scheduler
-Add these secrets to your GitHub repo (Settings → Secrets → Actions):
-- `BACKEND_URL` — your Railway URL e.g. `https://chenesa-api.railway.app`
-- `SCHEDULER_SECRET` — same value as `SCHEDULER_SECRET` in Railway env vars
+Install the Python dependencies, configure the required server environment values, and start the FastAPI application using the project's backend configuration.
 
-## Plans
-| Plan | Price | Runs | Emails/run | Accounts |
-|---|---|---|---|---|
-| Free | $0 | 3 lifetime | 50 | 1 |
-| Basic | $7/mo | Unlimited | 500 | 2 |
-| Pro | $15/mo | Unlimited | Unlimited | 4 |
+Database migrations are stored under `supabase/migrations/`.
+
+## Deployment
+
+The project is designed as a split frontend/API deployment:
+
+- **Vercel** for the Next.js application
+- **Railway** for the FastAPI service
+- **Supabase** for PostgreSQL and database tooling
+- **GitHub Actions** for scheduled processing
+
+## Engineering focus
+
+Chenesa demonstrates full-stack product development across TypeScript/React and Python, third-party email integrations, scheduled automation, database-backed SaaS workflows, and secure handling of external-service credentials.
+
+> Configuration values and secrets should be supplied through the deployment environment rather than committed to the repository.
